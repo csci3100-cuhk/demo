@@ -61,7 +61,7 @@ rails runner "puts 'Movies: ' + Movie.count.to_s; puts 'Moviegoers: ' + Moviegoe
 
 ## 1. DRYing Out MVC (ESaaS §5.1)
 
-**Lecture Slides: 2-20**
+**Lecture Slides: 2-23**
 
 The DRY (Don't Repeat Yourself) principle is central to Rails. Cross-cutting concerns are handled through:
 - **Validations** - for models
@@ -70,7 +70,7 @@ The DRY (Don't Repeat Yourself) principle is central to Rails. Cross-cutting con
 
 ### 1.1 Model Validations
 
-**Lecture Slides: 6-10**
+**Lecture Slides: 7-12**
 
 > *"Goal: enforce that movie names must be less than 40 characters"*
 
@@ -147,7 +147,7 @@ in `movie.rb`
 
 ### 1.2 Controller Filters
 
-**Lecture Slides: 11-17**
+**Lecture Slides: 13-20**
 
 > *"Controller Filters provide a way to share functionality before each action"*
 
@@ -214,7 +214,7 @@ end
 
 ### 1.3 Partials
 
-**Lecture Slides: 18-20**
+**Lecture Slides: 21-23**
 
 > *"render inside a view allows sharing code between views"*
 
@@ -271,7 +271,7 @@ Partials are reusable view fragments. By convention, their filenames start with 
 
 ## 2. Single Sign-On & Third-Party Authentication (ESaaS §5.2)
 
-**Lecture Slides: 21-32**
+**Lecture Slides: 24-35**
 
 > *"OmniAuth gem helps a lot by providing uniform API to different strategies"*
 
@@ -411,7 +411,7 @@ rails server
 
 ## 3. ActiveRecord Associations (ESaaS §5.3)
 
-**Lecture Slides: 38-42**
+**Lecture Slides: 41-45**
 
 > *"After setting things up correctly, you don't have to worry (much) about keys and joins"*
 
@@ -429,7 +429,7 @@ end
 
 ```ruby
 class Review < ApplicationRecord
-  belongs_to :movie      # "The foreign key belongs to me"
+  belongs_to :movie      # "The foreign key belongs to movie"
   belongs_to :moviegoer
 end
 ```
@@ -493,7 +493,7 @@ review.moviegoer.name
 
 ## 4. Associations & Foreign Keys (ESaaS §5.4)
 
-**Lecture Slides: 43-45**
+**Lecture Slides: 36-40**
 
 ### Creating Associations with Migrations
 
@@ -539,7 +539,7 @@ Look for the `reviews` table with `movie_id` and `moviegoer_id` columns.
 
 ## 5. Through-Associations (ESaaS §5.5)
 
-**Lecture Slides: 46-51**
+**Lecture Slides: 49-54**
 
 > *"Scenario: Moviegoers rate Movies - a moviegoer can have many reviews, but a movie can also have many reviews"*
 
@@ -588,14 +588,14 @@ end
 ### What This Enables
 
 ```ruby
-# Movies reviewed by a user
-@user.movies
+# Movies reviewed by a moviegoer
+@moviegoer.movies
 
-# Users who reviewed a movie  
+# moviegoers who reviewed a movie  
 @movie.moviegoers
 
 # My potato scores for R-rated movies
-@user.reviews.select { |r| r.movie.rating == 'R' }
+@moviegoer.reviews.select { |r| r.movie.rating == 'R' }
 ```
 
 ### Generated SQL
@@ -603,9 +603,11 @@ end
 When you call `@user.movies`, Rails generates:
 
 ```sql
-SELECT movies.* FROM movies
-INNER JOIN reviews ON reviews.movie_id = movies.id
-WHERE reviews.moviegoer_id = 1
+SELECT * FROM movies
+  JOIN moviegoers ON 
+    reviews.moviegoer_id = moviegoers.id
+  JOIN movies ON 
+    reviews.movie_id = movies.id
 ```
 
 #### Try It - Rails Console
@@ -631,9 +633,62 @@ alice.reviews.joins(:movie).where(movies: { rating: 'R' }).count
 
 ---
 
-## 6. RESTful Routes for Associations (ESaaS §5.6)
+## 6. Referential Integrity
 
-**Lecture Slides: 52-59**
+**Lecture Slides: 55-56**
+
+> *"What if we delete a movie with reviews?"*
+
+### The Problem
+
+If you delete a movie, its reviews would have `movie_id` pointing to a non-existent record.
+
+### Solutions
+
+**File: `app/models/movie.rb`**
+
+```ruby
+class Movie < ApplicationRecord
+  # Option 1: Delete associated reviews (cascade delete)
+  has_many :reviews, dependent: :destroy
+
+  # Option 2: Set foreign key to NULL (orphan the reviews)
+  # has_many :reviews, dependent: :nullify
+  
+  # Option 3: Prevent deletion if reviews exist
+  # has_many :reviews, dependent: :restrict_with_error
+end
+```
+
+#### Try It - Rails Console
+
+```ruby
+# Create a movie with a review
+movie = Movie.create!(title: 'Test Movie', rating: 'PG', release_date: '2026-01-01')
+alice = Moviegoer.first
+review = movie.reviews.create!(moviegoer: alice, potatoes: 3)
+review_id = review.id
+
+# Delete the movie
+movie.destroy
+
+# Try to find the review - it's gone! (dependent: :destroy)
+Review.find(review_id)
+# => ActiveRecord::RecordNotFound
+```
+
+#### Try It - Web Interface
+
+1. Go to a movie with reviews
+2. Click "Destroy this movie"
+3. Confirm the deletion
+4. The movie AND all its reviews are deleted
+
+---
+
+## 7. RESTful Routes for Associations (ESaaS §5.6)
+
+**Lecture Slides: 57-63**
 
 > *"Nested Route: access reviews by going 'through' a movie"*
 
@@ -724,62 +779,9 @@ end
 
 ---
 
-## 7. Referential Integrity
+## 8. (Optional) DRYing Out Queries with Scopes (ESaaS §5.8)
 
-**Lecture Slides: 60-62**
-
-> *"What if we delete a movie with reviews?"*
-
-### The Problem
-
-If you delete a movie, its reviews would have `movie_id` pointing to a non-existent record.
-
-### Solutions
-
-**File: `app/models/movie.rb`**
-
-```ruby
-class Movie < ApplicationRecord
-  # Option 1: Delete associated reviews (cascade delete)
-  has_many :reviews, dependent: :destroy
-
-  # Option 2: Set foreign key to NULL (orphan the reviews)
-  # has_many :reviews, dependent: :nullify
-  
-  # Option 3: Prevent deletion if reviews exist
-  # has_many :reviews, dependent: :restrict_with_error
-end
-```
-
-#### Try It - Rails Console
-
-```ruby
-# Create a movie with a review
-movie = Movie.create!(title: 'Test Movie', rating: 'PG', release_date: '2026-01-01')
-alice = Moviegoer.first
-review = movie.reviews.create!(moviegoer: alice, potatoes: 3)
-review_id = review.id
-
-# Delete the movie
-movie.destroy
-
-# Try to find the review - it's gone! (dependent: :destroy)
-Review.find(review_id)
-# => ActiveRecord::RecordNotFound
-```
-
-#### Try It - Web Interface
-
-1. Go to a movie with reviews
-2. Click "Destroy this movie"
-3. Confirm the deletion
-4. The movie AND all its reviews are deleted
-
----
-
-## 8. DRYing Out Queries with Scopes (ESaaS §5.8)
-
-**Lecture Slides: 71-74**
+**Lecture Slides: 66-69**
 
 > *"Scopes are evaluated lazily! Use scopes for common patterns."*
 

@@ -95,4 +95,5 @@ class ReviewsController < ApplicationController
     redirect_to login_path, alert: 'You must be logged in :(.' and return unless @current_user
   end
 
+  
 end

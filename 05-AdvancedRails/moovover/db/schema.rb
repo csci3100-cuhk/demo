@@ -29,7 +29,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_30_000002) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "stars"
-    t.integer "likes"
   end
 
   create_table "reviews", force: :cascade do |t|

@@ -8,7 +8,6 @@ class MoviesController < ApplicationController
 
   # GET /movies/1 or /movies/1.json
   def show
-    # flash.now[:notice] = "THIS IS FLASH!"
   end
 
   # GET /movies/new
@@ -22,8 +21,6 @@ class MoviesController < ApplicationController
 
   # POST /movies or /movies.json
   def create
-    # @movie = Movie.new(movie_params)
-    # debugger
     new_movie_params = movie_params()
     @movie = Movie.new(new_movie_params)
 
