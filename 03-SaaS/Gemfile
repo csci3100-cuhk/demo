@@ -1,0 +1,9 @@
+source 'https://rubygems.org'
+
+gem 'sinatra'
+gem 'byebug'
+gem 'debug', ">= 1.0.0"
+gem "rackup", "~> 2.3"
+gem "puma", "~> 7.1"
+
+gem 'rerun'

@@ -1,0 +1,33 @@
+<%# Edit review form - nested route (ESaaS §5.6) %>
+<%# URL: GET /movies/:movie_id/reviews/:id/edit %>
+
+<h1>Edit Review for <%= @movie.title %></h1>
+
+<%# form_with for Rails 5+ (ESaaS §5.6) %>
+<%# url: [movie, review] generates the nested route %>
+<%= form_with(model: [@movie, @review], local: true, class: 'mb-4') do |form| %>
+  <% if @review.errors.any? %>
+    <div class="alert alert-danger">
+      <h4><%= pluralize(@review.errors.count, "error") %> prohibited this review from being saved:</h4>
+      <ul>
+        <% @review.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="mb-3">
+    <%= form.label :potatoes, 'Rating (1-5 potatoes)', class: 'form-label' %>
+    <%= form.select :potatoes, (1..5).map { |n| ["#{'🥔' * n} (#{n})", n] },
+        {},
+        class: 'form-select' %>
+  </div>
+
+  <div class="mb-3">
+    <%= form.submit 'Update Review', class: 'btn btn-primary' %>
+    <%= link_to 'Cancel', movie_review_path(@movie, @review), class: 'btn btn-secondary' %>
+  </div>
+<% end %>
+
+<%= link_to 'Back to Review', movie_review_path(@movie, @review), class: 'btn btn-link' %>
