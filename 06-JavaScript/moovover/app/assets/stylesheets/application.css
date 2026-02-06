@@ -1,0 +1,116 @@
+/*
+ * This is a manifest file that'll be compiled into application.css, which will include all the files
+ * listed below.
+ *
+ * Any CSS (and SCSS, if configured) file within this directory, lib/assets/stylesheets, or any plugin's
+ * vendor/assets/stylesheets directory can be referenced here using a relative path.
+ *
+ * You're free to add application-wide styles to this file and they'll appear at the bottom of the
+ * compiled file so the styles you add here take precedence over styles defined in any other CSS
+ * files in this directory. Styles in this file should be added after the last require_* statement.
+ * It is generally better to create a new file per style scope.
+ *
+ *= require_tree .
+ *= require_self
+ */
+
+/* ============================================================
+ * ESaaS §6.1 - Progressive Enhancement: CSS for JS Features
+ * ============================================================
+ * These styles enhance the experience when JavaScript is enabled.
+ * The base HTML remains usable without JS (progressive enhancement).
+ *
+ * ESaaS §6.5 - Accessibility: Color Contrast
+ * WCAG requires a minimum contrast ratio between foreground and
+ * background: 4.5:1 for normal text, 3:1 for large text.
+ */
+
+/* ============================================================
+ * Accessibility: Skip Navigation Link (ESaaS §6.5)
+ * ============================================================
+ * Keyboard users (Tab key) can skip the navigation bar.
+ * Visually hidden until focused, then appears prominently.
+ */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #000;
+  color: #fff;
+  padding: 8px 16px;
+  z-index: 9999;
+  transition: top 0.2s;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* ============================================================
+ * Movie Popup - AJAX Response Display (ESaaS §6.7)
+ * ============================================================
+ * This popup is shown/hidden by JavaScript (movie_popup.js).
+ * Initially hidden (display: none), shown via jQuery .show()/.hide().
+ *
+ * §6.4 - jQuery: .show() sets display:block, .hide() sets display:none
+ * §6.5 - Has role="dialog" and aria-hidden for accessibility
+ */
+.movie-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.movie-popup-content {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 500px;
+  width: 90%;
+  position: relative;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+}
+
+.movie-popup-content .btn-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+/* ============================================================
+ * Movie Table Row Hover (ESaaS §6.6 - Events Visual Feedback)
+ * ============================================================ */
+.movie-row:hover {
+  background-color: #f8f9fa;
+}
+
+/* ============================================================
+ * Accessibility: Focus Indicators (ESaaS §6.5)
+ * ============================================================
+ * §6.5: "A focused element should visually indicate the selected state"
+ * Ensure interactive elements have clear focus outlines for
+ * keyboard navigation.
+ */
+.movie-popup-link:focus,
+.movie-checkbox:focus,
+.btn:focus,
+.form-control:focus,
+.form-select:focus {
+  outline: 2px solid #0d6efd;
+  outline-offset: 2px;
+}
+
+/* ============================================================
+ * Selected Movie Row Highlight
+ * ============================================================ */
+.movie-checkbox:checked ~ td,
+tr:has(.movie-checkbox:checked) {
+  background-color: #e8f4fd;
+}

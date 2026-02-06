@@ -1,0 +1,70 @@
+<%#
+  Movie Form Partial - app/views/movies/_form.html.erb
+
+  §6.5 - Accessibility: Form Inputs Need Labels!
+  Every form input MUST have a label. Rails' form helpers make it easy
+  to match inputs with labels:
+    form.label :title  →  <label for="movie_title">Title</label>
+    form.text_field :title  →  <input id="movie_title" ...>
+  The for="movie_title" matches id="movie_title", so:
+    - Screen readers can announce what each field is for
+    - Clicking the label focuses the input (usability improvement)
+
+  §6.6 - Events: Client-side form validation
+  We add HTML5 validation attributes (required, maxlength) that work
+  WITHOUT JavaScript. With JS, we could add more sophisticated
+  validation handlers that run before form submission.
+%>
+<%= form_with(model: movie, html: { novalidate: false }) do |form| %>
+  <%# §6.5 - Error messages should be accessible %>
+  <% if movie.errors.any? %>
+    <div class="alert alert-danger" role="alert" aria-label="Form errors">
+      <h2 class="h5"><%= pluralize(movie.errors.count, "error") %> prohibited this movie from being saved:</h2>
+      <ul class="mb-0">
+        <% movie.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <%#
+    §6.5 - Form Inputs Need Labels!
+    form.label creates: <label for="movie_title">Title</label>
+    form.text_field creates: <input type="text" id="movie_title" name="movie[title]">
+    The for/id connection enables:
+      1. Screen readers to announce the label when input is focused
+      2. Users to click the label to focus the input
+  %>
+  <div class="mb-3">
+    <%= form.label :title, class: "form-label" %>
+    <%= form.text_field :title, class: "form-control", required: true,
+        maxlength: 10, aria: { describedby: "title-help" } %>
+    <div id="title-help" class="form-text">Required. Maximum 10 characters.</div>
+  </div>
+
+  <div class="mb-3">
+    <%= form.label :rating, class: "form-label" %>
+    <%= form.select :rating,
+        options_for_select(Movie::RATINGS, movie.rating),
+        { include_blank: '-- Select Rating --' },
+        { class: "form-select", aria: { describedby: "rating-help" } } %>
+    <div id="rating-help" class="form-text">Select a movie rating (G, PG, PG-13, R, NC-17).</div>
+  </div>
+
+  <div class="mb-3">
+    <%= form.label :description, class: "form-label" %>
+    <%= form.text_area :description, class: "form-control", rows: 3 %>
+  </div>
+
+  <div class="mb-3">
+    <%= form.label :release_date, class: "form-label" %>
+    <%= form.date_field :release_date, class: "form-control", required: true,
+        aria: { describedby: "date-help" } %>
+    <div id="date-help" class="form-text">Required. Must be 1930 or later.</div>
+  </div>
+
+  <div>
+    <%= form.submit class: "btn btn-primary" %>
+  </div>
+<% end %>
