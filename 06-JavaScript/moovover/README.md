@@ -100,7 +100,7 @@ Our app follows progressive enhancement: the app works WITHOUT JavaScript, but J
 
 1. Visit http://127.0.0.1:3000/movies
 2. Click "Quick View" on any movie - an AJAX popup appears (JS enhanced)
-3. Now disable JavaScript in your browser (Settings > Content > JavaScript)
+3. Now disable JavaScript in your browser (normally, Settings > Content > JavaScript)
 4. Click "Quick View" again - it navigates to the full show page (still works!)
 
 ### 1.2 The Module Pattern & Variable Scope
@@ -132,14 +132,14 @@ MoviePopup.setup = function() { ... };
 MoviePopup.getMovieInfo = function() { ... };
 ```
 
-#### Key Scoping Rules
+<!-- #### Key Scoping Rules
 
 | Keyword | Scope | Use Case |
 |---------|-------|----------|
 | `var` | Function scope | Avoid in modern JS |
 | `let` | Block scope | Mutable variables |
 | `const` | Block scope | Immutable bindings (objects can still mutate!) |
-| (none) | Global (window) | Almost never what you want! |
+| (none) | Global (window) | Almost never what you want! | -->
 
 ---
 
@@ -153,9 +153,9 @@ JavaScript and Ruby share many features:
 |---------|------|------------|
 | Typing | Dynamic | Dynamic |
 | String interpolation | `"Hello #{name}"` | `` `Hello ${name}` `` |
-| First-class functions | `lambda { |x| x*2 }` | `(x) => x*2` |
+| First-class functions | `lambda {\|x\| x*2 }` | `(x) => x*2` |
 | Regex | `/pattern/` | `/pattern/` |
-| Collections | `[1,2,3].map { |x| x*x }` | `[1,2,3].map(x => x*x)` |
+| Collections | `[1,2,3].map { \|x\| x*x }` | `[1,2,3].map(x => x*x)` |
 | Inheritance | Class-based | Prototype-based (class syntax is sugar) |
 
 ### How JS is Loaded in Rails
@@ -668,83 +668,6 @@ $.ajax({
 fetch('/movies/1.json')
   .then(r => r.json())
   .then(data => console.log(data));
-```
-
----
-
-## 8. Intro to Jasmine: TDD for JavaScript (ESaaS §6.8)
-
-**Lecture Slides: 71-82**
-
-> *"Jasmine is like RSpec for JavaScript"*
-
-Jasmine is a testing framework for JavaScript that mirrors RSpec's structure.
-
-### Jasmine vs RSpec Comparison
-
-| RSpec (Ruby) | Jasmine (JavaScript) |
-|--------------|---------------------|
-| `describe "things" do ... end` | `describe("things", function() { ... })` |
-| `it "..." do ... end` | `it("...", function() { ... })` |
-| `before(:each) do ... end` | `beforeEach(function() { ... })` |
-| `expect {...}.to eq "foo"` | `expect(expr).toEqual("foo")` |
-| `double(), allow()` | `spyOn()` |
-
-### Example Jasmine Test
-
-```javascript
-describe('Movie Popup', function() {
-  // Setup: runs before each test
-  beforeEach(function() {
-    // loadFixtures provides HTML context for tests
-    // loadFixtures('movie_row.html');
-  });
-
-  describe('Clicking Quick View button', function() {
-    it('shows the movie popup', function() {
-      // Trigger a click on the Quick View link
-      $('a.movie-popup-link').first().trigger('click');
-      // Expect the popup to be visible
-      expect($('#movie-popup')).toBeVisible();
-    });
-
-    it('hides popup when close is clicked', function() {
-      MoviePopup.showPopup();
-      $('#movie-popup-close').trigger('click');
-      expect($('#movie-popup')).toBeHidden();
-    });
-  });
-
-  describe('Select All checkbox', function() {
-    it('checks all movie checkboxes', function() {
-      $('#select-all-movies').prop('checked', true).trigger('change');
-      expect($('.movie-checkbox:checked').length).toEqual($('.movie-checkbox').length);
-    });
-  });
-});
-```
-
-### Jasmine Expectations (jasmine-jquery)
-
-| Matcher | Purpose |
-|---------|---------|
-| `toBeVisible()`, `toBeHidden()` | Check visibility |
-| `toHaveClass("foo")` | Check CSS class |
-| `toHaveAttr("href", "/url")` | Check attribute |
-| `toContainText("hello")` | Check text content |
-| `toBeChecked()`, `toBeSelected()` | Check form state |
-| `toBeDisabled()` | Check disabled state |
-
-### Stubs (Spies)
-
-```javascript
-// Spy on AJAX calls to avoid real network requests in tests
-spyOn($, 'ajax').and.callFake(function(options) {
-  // Return fake movie data
-  options.success({
-    id: 1, title: 'Test Movie', rating: 'PG'
-  });
-});
 ```
 
 ---
