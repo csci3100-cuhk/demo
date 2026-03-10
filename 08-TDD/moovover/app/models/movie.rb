@@ -51,19 +51,22 @@ class Movie < ApplicationRecord
       .having('COUNT(reviews.id) >= ?', count)
   }
 
-  # Class method seam for TMDb search (Lecture 8 controller example).
-  # In controller specs we stub this method rather than calling a real API.
-  def self.find_in_tmdb(_search_terms)
-    raise "TMDb search not implemented – this method is intended to be stubbed in tests"
-  end
+  # ============================================================
+  # EXERCISE 1: Uncomment name_with_rating to make model spec GREEN
+  # Run:  bundle exec rspec spec/models/movie_spec.rb
+  # ============================================================
+  # def name_with_rating
+  #   "#{title} (#{rating})"
+  # end
 
   # ============================================================
-  # Custom Validation Methods
+  # EXERCISE 2: Uncomment find_in_tmdb to add the "seam" (Slide 28)
+  # This class method is the seam that controller specs stub.
+  # Run:  bundle exec rspec spec/controllers/movies_controller_spec.rb
   # ============================================================
-
-  def name_with_rating
-    "#{title} (#{rating})"
-  end
+  # def self.find_in_tmdb(_search_terms)
+  #   raise "TMDb search not implemented – this method is intended to be stubbed in tests"
+  # end
 
   private
 

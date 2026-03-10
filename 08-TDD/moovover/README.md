@@ -12,7 +12,7 @@ behavior.
 
 ---
 
-## Running the Demo
+## Getting Started
 
 ```bash
 cd moovover
@@ -21,16 +21,30 @@ bin/rails db:migrate RAILS_ENV=test
 bundle exec rspec           # run all specs
 ```
 
-You should see output like:
+**Some specs are RED on purpose!** Key implementation code has been
+commented out. Your job is to find and uncomment the right code to turn
+each exercise from RED to GREEN — just like the TDD cycle in the lecture.
+
+There are **3 exercises** spread across 2 files. Look for comments that
+start with `EXERCISE`:
+
+| Exercise | File | What to uncomment | Specs that turn GREEN |
+|----------|------|-------------------|----------------------|
+| 1 | `app/models/movie.rb` | `name_with_rating` method | model spec, fixture/factory specs |
+| 2 | `app/models/movie.rb` | `find_in_tmdb` class method (the seam) | — (needed by Exercise 3) |
+| 3 | `app/controllers/movies_controller.rb` | `search_tmdb` action body | all 3 controller specs |
+
+Work through them in order (1 → 2 → 3). After each exercise, run
+`bundle exec rspec` to see specs go from RED to GREEN.
+
+When all exercises are done you should see:
 
 ```
-.........
+...............
 
-Finished in 0.13 seconds
-9 examples, 0 failures
+Finished in 0.12 seconds
+15 examples, 0 failures
 ```
-
-All green — every spec passes.
 
 ---
 
@@ -523,26 +537,71 @@ From the slides:
 
 ---
 
-## 12. Exercises
+## 12. Hands-On Exercises (Red → Green)
 
-Try these modifications to deepen your understanding:
+The implementation code is **commented out** in the source files.
+Work through the exercises in order. After each one, run
+`bundle exec rspec` and observe specs turning from RED to GREEN.
 
-1. **Comment out the controller action body.** Make `search_tmdb` an empty
-   method (`def search_tmdb; end`). Run `bundle exec rspec spec/controllers`.
-   Observe which specs go red and which error messages you see.
+### Exercise 1 — Model TDD: `name_with_rating`
 
-2. **Add a sad-path spec.** What should happen if `find_in_tmdb` returns an
-   empty array? Write a new `it` block that stubs `find_in_tmdb` to return
-   `[]`, calls the action, and checks for an appropriate response.
+1. Run `bundle exec rspec spec/models/movie_spec.rb` — observe the failure:
+   `NoMethodError: undefined method 'name_with_rating'`
+2. Open `app/models/movie.rb`, find the `EXERCISE 1` comment, and
+   **uncomment** the `name_with_rating` method.
+3. Run the spec again — it should be GREEN.
 
-3. **Use `and_return` with attributes.** Change the doubles spec to create
-   doubles with stubbed `:title` and `:rating` methods, then call
-   `name_with_rating`-style formatting on them.
+**What you learned:** This is the Red–Green cycle. The spec existed first
+(the code you wish you had), then you added the implementation.
 
-4. **Add a model spec for a scope.** Write a spec for `Movie.for_kids` that
-   creates movies with different ratings and checks that only G and PG
-   movies are returned.
+### Exercise 2 — Add the Seam: `find_in_tmdb`
 
-5. **Break a stub on purpose.** In spec 1, change `'hardware'` in
-   `with('hardware')` to `'software'`. Run the spec and read the failure
-   message to understand how message expectations report mismatches.
+1. Run `bundle exec rspec spec/controllers/movies_controller_spec.rb` —
+   observe: `Movie does not implement: find_in_tmdb`
+2. Open `app/models/movie.rb`, find the `EXERCISE 2` comment, and
+   **uncomment** the `find_in_tmdb` class method.
+3. Run the controller spec again — the error message changes (but specs
+   still fail). This is progress! The seam now exists, but the controller
+   doesn't use it yet.
+
+**What you learned:** A seam is a method you can intercept (stub) without
+changing the code that calls it. The method doesn't need a real
+implementation — it just needs to *exist* so RSpec can stub it.
+
+### Exercise 3 — Controller TDD: `search_tmdb` action
+
+1. Open `app/controllers/movies_controller.rb`, find the `EXERCISE 3`
+   comment, and **uncomment** the three lines inside `search_tmdb`.
+2. Run `bundle exec rspec spec/controllers/movies_controller_spec.rb` —
+   all 3 specs should be GREEN.
+
+**What you learned:** The controller action does three things that match
+the three specs: (1) calls `Movie.find_in_tmdb`, (2) renders the
+`search_tmdb` template, (3) assigns `@movies` for the view.
+
+### Verify: all GREEN
+
+```bash
+bundle exec rspec
+# 15 examples, 0 failures
+```
+
+### Bonus Exercises
+
+Try these after completing Exercises 1–3:
+
+1. **Re-comment the controller body** (Exercise 3) and run specs. Read
+   each failure message — can you match each failure to a specific `it`
+   block?
+
+2. **Add a sad-path spec.** What should happen if `find_in_tmdb` returns
+   `[]`? Write a new `it` block that stubs it to return `[]` and checks
+   the response.
+
+3. **Break a stub on purpose.** In spec 1, change `'hardware'` to
+   `'software'` in `with('hardware')`. Run it and read the mismatch
+   message.
+
+4. **Add a model spec for a scope.** Write a spec for `Movie.for_kids`
+   that creates movies with different ratings and checks only G and PG
+   are returned.

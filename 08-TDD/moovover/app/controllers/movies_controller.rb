@@ -52,10 +52,14 @@ class MoviesController < ApplicationController
   #   - the controller invoking the model method
   #   - selecting the correct template
   #   - making the search results available to the view
+  # ============================================================
+  # EXERCISE 3: Uncomment the body to make controller specs GREEN
+  # Run:  bundle exec rspec spec/controllers/movies_controller_spec.rb
+  # ============================================================
   def search_tmdb
-    search_terms = params[:search_terms]
-    @movies = Movie.find_in_tmdb(search_terms)
-    render :search_tmdb
+    # search_terms = params[:search_terms]
+    # @movies = Movie.find_in_tmdb(search_terms)
+    # render :search_tmdb
   end
 
   # GET /movies/new
