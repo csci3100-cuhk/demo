@@ -64,9 +64,9 @@ class Movie < ApplicationRecord
   # This class method is the seam that controller specs stub.
   # Run:  bundle exec rspec spec/controllers/movies_controller_spec.rb
   # ============================================================
-  # def self.find_in_tmdb(_search_terms)
-  #   raise "TMDb search not implemented – this method is intended to be stubbed in tests"
-  # end
+  def self.find_in_tmdb(_search_terms)
+    raise "TMDb search not implemented – this method is intended to be stubbed in tests"
+  end
 
   private
 

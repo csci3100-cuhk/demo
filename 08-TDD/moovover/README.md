@@ -423,7 +423,7 @@ Use `create` when the test needs the record to exist in the database.
 |------|-------------------|
 | TMDb API key | Fixture (static config that never changes) |
 | Movie for a specific test | Factory (create per-test with custom attributes) |
-| Admin superuser account | Fixture (static, shared across tests) |
+| Admin superuser account | Prefer Fixture (static, shared across tests), but Factory also OK |
 
 ---
 
