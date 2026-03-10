@@ -13,8 +13,7 @@ RSpec.describe MoviesController, type: :controller do
 
       get :search_tmdb, params: { search_terms: "hardware" }
 
-      expect(response).to have_http_status(:ok)
-      expect(response.media_type).to eq("text/html")
+      expect(response).to render_template("search_tmdb")
     end
 
     it "makes the TMDb search results available to that template" do
@@ -23,8 +22,8 @@ RSpec.describe MoviesController, type: :controller do
 
       get :search_tmdb, params: { search_terms: "hardware" }
 
-      controller_movies = controller.instance_variable_get(:@movies)
-      expect(controller_movies).to eq(fake_results)
+      expect(assigns[:movies]).to eq(fake_results)
+      expect(assigns[:movies]).to be_a_kind_of(Enumerable)
     end
   end
 end

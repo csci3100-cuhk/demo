@@ -138,7 +138,7 @@ calls the real TMDb API.
 
 ---
 
-## 4. The Controller Spec — Three Behaviors (Slides 26–33, 39)
+## 4. The Controller Spec — Three Behaviors (Slides 25–33, 39)
 
 **File:** `spec/controllers/movies_controller_spec.rb`
 
@@ -158,8 +158,7 @@ RSpec.describe MoviesController, type: :controller do
 
       get :search_tmdb, params: { search_terms: 'hardware' }
 
-      expect(response).to have_http_status(:ok)
-      expect(response.media_type).to eq('text/html')
+      expect(response).to render_template('search_tmdb')
     end
 
     it 'makes the TMDb search results available to that template' do
@@ -168,8 +167,8 @@ RSpec.describe MoviesController, type: :controller do
 
       get :search_tmdb, params: { search_terms: 'hardware' }
 
-      controller_movies = controller.instance_variable_get(:@movies)
-      expect(controller_movies).to eq(fake_results)
+      expect(assigns[:movies]).to eq(fake_results)
+      expect(assigns[:movies]).to be_a_kind_of(Enumerable)
     end
   end
 end
@@ -193,35 +192,41 @@ get :search_tmdb, params: { search_terms: 'hardware' }
 - The expectation line comes *before* the `get` — RSpec sets up the
   expectation first, then checks it after the action runs.
 
-#### Spec 2 — "selects the Search Results template" (Slide 33)
+#### Spec 2 — "selects the Search Results template" (Slides 25, 33)
 
 ```ruby
 allow(Movie).to receive(:find_in_tmdb)
 get :search_tmdb, params: { search_terms: 'hardware' }
-expect(response).to have_http_status(:ok)
+expect(response).to render_template('search_tmdb')
 ```
 
 - `allow` is a **method stub** — it intercepts the call to
   `find_in_tmdb` and returns `nil`, preventing the real (unimplemented)
   method from raising an error.
-- We then check that the controller rendered the `search_tmdb` template
-  successfully.
+- `render_template('search_tmdb')` (Slide 25) verifies the controller
+  rendered the correct view template. This matcher comes from the
+  `rails-controller-testing` gem.
 - Note the difference: `expect(...).to receive` = "this **must** be called"
   (mock); `allow(...).to receive` = "if called, return this" (stub).
 
-#### Spec 3 — "makes results available to the template" (Slide 39)
+#### Spec 3 — "makes results available to the template" (Slides 25, 39)
 
 ```ruby
 fake_results = [double('Movie'), double('Movie')]
 allow(Movie).to receive(:find_in_tmdb).and_return(fake_results)
 get :search_tmdb, params: { search_terms: 'hardware' }
-controller_movies = controller.instance_variable_get(:@movies)
-expect(controller_movies).to eq(fake_results)
+expect(assigns[:movies]).to eq(fake_results)
+expect(assigns[:movies]).to be_a_kind_of(Enumerable)
 ```
 
 - `double('Movie')` creates a **stunt double** — a fake object that
   stands in for a real `Movie`. We don't care about its attributes here;
   we just need something the view can iterate over.
+- `assigns[:movies]` (Slide 25) is a hash of all instance variables set
+  by the controller — `assigns[:movies]` reads `@movies`. This comes from
+  the `rails-controller-testing` gem.
+- `be_a_kind_of(Enumerable)` (Slide 25) checks that the results are
+  iterable, which is all the view needs to loop over them.
 - `and_return(fake_results)` makes the stub return our fake list.
 - We verify that the controller set `@movies` to exactly the fake results.
   This is how the view will access the data.
@@ -234,6 +239,9 @@ expect(controller_movies).to eq(fake_results)
 | **Method stub** (`allow`) | Intercepts `find_in_tmdb` so it doesn't hit TMDb |
 | **Message expectation** (`expect...to receive`) | Verifies the controller *actually calls* the model method |
 | **Stunt double** (`double`) | Fake Movie objects returned by the stub |
+| **`render_template`** (Slide 25) | Checks which view template the controller rendered |
+| **`assigns[:movies]`** (Slide 25) | Reads the `@movies` instance variable set by the controller |
+| **`be_a_kind_of`** (Slide 25) | Checks the results are Enumerable (iterable by the view) |
 | **Arrange–Act–Assert** | Each spec: set up stub → call controller → check result |
 
 ---

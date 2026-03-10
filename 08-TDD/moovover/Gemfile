@@ -54,6 +54,9 @@ group :development, :test do
 
   # FactoryBot for Fixtures & Factories examples (Lecture 8, Slides 52–53)
   gem "factory_bot_rails"
+
+  # Restores assigns[] and render_template matchers (Lecture 8, Slide 25)
+  gem "rails-controller-testing"
 end
 
 group :development do
