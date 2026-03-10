@@ -1,0 +1,47 @@
+<%= render @movie %>
+
+<%#
+  Reviews section - demonstrating associations (ESaaS §5.3, §5.4)
+  Accessibility (§6.5): Use <section> with aria-labelledby for grouping related content
+%>
+<section class="card mt-4" aria-labelledby="reviews-heading">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h3 id="reviews-heading" class="h5 mb-0">
+      Reviews (<%= @movie.reviews.count %>)
+    </h3>
+    <%= link_to "Write a Review", new_movie_review_path(@movie),
+          class: "btn btn-sm btn-primary",
+          aria: { label: "Write a review for #{@movie.title}" } %>
+  </div>
+  <div class="card-body">
+    <% if @movie.reviews.any? %>
+      <% @movie.reviews.includes(:moviegoer).limit(3).each do |review| %>
+        <div class="mb-2" role="listitem">
+          <strong aria-label="<%= review.potatoes %> out of 5 potatoes">
+            <% review.potatoes.times do %>🥔<% end %>
+          </strong>
+          <small class="text-muted">
+            by <%= review.moviegoer.name || 'Anonymous' %>
+          </small>
+        </div>
+      <% end %>
+      <% if @movie.reviews.count > 3 %>
+        <p class="text-muted">
+          <%= link_to "See all #{@movie.reviews.count} reviews...", movie_reviews_path(@movie) %>
+        </p>
+      <% end %>
+    <% else %>
+      <p class="text-muted mb-0">No reviews yet. Be the first!</p>
+    <% end %>
+  </div>
+</section>
+
+<%# Navigation actions with proper accessibility labels (§6.5) %>
+<nav class="mt-4" aria-label="Movie actions">
+  <%= link_to "Edit this movie", edit_movie_path(@movie), class: "btn btn-secondary" %>
+  <%= link_to "All Reviews", movie_reviews_path(@movie), class: "btn btn-info" %>
+  <%= link_to "Back to movies", movies_path, class: "btn btn-link" %>
+
+  <%= button_to "Destroy this movie", @movie, method: :delete, class: "btn btn-danger",
+      data: { turbo_confirm: "Are you sure? This will also delete all reviews (dependent: :destroy)." } %>
+</nav>

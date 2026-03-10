@@ -1,0 +1,42 @@
+<%#
+  Movie Partial - app/views/movies/_movie.html.erb
+
+  §6.5 - Accessibility: Using Semantic HTML
+  Use <article> for self-contained content (a movie entry).
+  Use <dl> (definition list) for key-value pairs.
+  Screen readers understand these semantic elements.
+
+  §6.7 - AJAX: This partial can also be rendered server-side
+  in response to an AJAX request:
+    render partial: 'movie', locals: { movie: @movie }
+%>
+<article id="<%= dom_id movie %>" class="card mb-3" aria-label="Movie: <%= movie.title %>">
+  <div class="card-body">
+    <h2 class="card-title h5"><%= movie.title %></h2>
+    <dl class="row mb-0">
+      <dt class="col-sm-3">Rating</dt>
+      <dd class="col-sm-9">
+        <% if movie.rating.present? %>
+          <span class="badge bg-info"><%= movie.rating %></span>
+        <% else %>
+          <span class="text-muted">Not rated</span>
+        <% end %>
+      </dd>
+
+      <% if movie.description.present? %>
+        <dt class="col-sm-3">Description</dt>
+        <dd class="col-sm-9"><%= movie.description %></dd>
+      <% end %>
+
+      <dt class="col-sm-3">Release Date</dt>
+      <dd class="col-sm-9">
+        <%# §6.5 - Semantic HTML: <time> element for dates %>
+        <% if movie.release_date.present? %>
+          <time datetime="<%= movie.release_date.to_s %>"><%= movie.release_date %></time>
+        <% else %>
+          <span class="text-muted">Unknown</span>
+        <% end %>
+      </dd>
+    </dl>
+  </div>
+</article>

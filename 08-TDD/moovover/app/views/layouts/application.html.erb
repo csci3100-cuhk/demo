@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>MoovOver - Movie Reviews</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="description" content="MoovOver - A movie review application demonstrating JavaScript, jQuery, AJAX, and accessibility in Rails">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%# Bootstrap CSS for responsive layout %>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+
+    <%= stylesheet_link_tag 'application', media: 'all' %>
+
+    <%#
+      ESaaS §6.4 - jQuery
+      jQuery is the standard way to do client-side JS enhancements.
+      $() is aliased to jQuery() - a single polymorphic global function.
+      Three ways to call $():
+        1. $(selector) - Select DOM elements using CSS selectors
+        2. $('<tag>') - Create new DOM elements
+        3. $(function) - Run function when DOM is ready (document.ready)
+    %>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"
+            integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="
+            crossorigin="anonymous"></script>
+
+    <%#
+      ESaaS §6.1 - JavaScript: The Big Picture
+      javascript_include_tag loads JS via the asset pipeline (importmap in Rails 7).
+      Each HTML page gets its own JS global object (window).
+      The importmap approach uses ES modules (import/export) rather than bundling.
+    %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body>
+    <%# Accessibility (ESaaS §6.5): Skip navigation link for keyboard users %>
+    <a href="#main-content" class="visually-hidden-focusable skip-link">Skip to main content</a>
+
+    <%#
+      Accessibility (ESaaS §6.5): Using Semantic HTML
+      <nav> conveys navigation role to screen readers (vs. a generic <div>)
+      aria-label describes the navigation purpose for assistive technology
+    %>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4" aria-label="Main navigation">
+      <div class="container">
+        <a class="navbar-brand" href="<%= movies_path %>">MoovOver</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                data-bs-target="#navbarNav" aria-controls="navbarNav"
+                aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <div class="navbar-nav ms-auto">
+            <% if logged_in? %>
+              <span class="navbar-text me-3">
+                Welcome, <%= current_user.name || current_user.email || 'User' %>!
+              </span>
+              <%= button_to 'Logout', logout_path, method: :delete, class: 'btn btn-outline-light btn-sm' %>
+            <% else %>
+              <%= link_to 'Login', login_path, class: 'btn btn-outline-light btn-sm' %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <%# Accessibility (ESaaS §6.5): <main> landmark for assistive technology %>
+    <main id="main-content" class="container" role="main">
+      <%# Flash messages with proper ARIA roles (ESaaS §6.5) %>
+      <% if flash[:notice].present? %>
+        <div class="alert alert-info alert-dismissible fade show" role="status" aria-live="polite">
+          <%= flash[:notice] %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      <% end %>
+      <% if flash[:alert].present? %>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert" aria-live="assertive">
+          <%= flash[:alert] %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      <% end %>
+
+      <%= yield %>
+    </main>
+
+    <%# Hidden div for AJAX movie popup (ESaaS §6.7) - initially hidden, shown via JS %>
+    <div id="movie-popup" class="movie-popup" style="display: none;" role="dialog" aria-label="Movie details" aria-hidden="true">
+      <div class="movie-popup-content">
+        <button id="movie-popup-close" class="btn-close" aria-label="Close movie details"></button>
+        <div id="movie-popup-body">
+          <%# Content loaded via AJAX (ESaaS §6.7) %>
+        </div>
+      </div>
+    </div>
+
+    <footer class="container mt-5 mb-3 text-center text-muted" role="contentinfo">
+      <hr>
+      <small>MoovOver &copy; <%= Date.today.year %> | CSCI3100 Software Engineering - Lecture 6: JavaScript</small>
+    </footer>
+
+    <%# Bootstrap JS for interactive components %>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <%#
+      ESaaS §6.6 - Events & Callbacks
+      Calling jQuery #3: Pass a function to $() to call it when DOM is "ready"
+      This is the setup function pattern discussed in the lecture.
+      All our custom JS is loaded via the importmap, but we also include
+      inline setup for the jQuery-based movie popup demo.
+    %>
+  </body>
+</html>

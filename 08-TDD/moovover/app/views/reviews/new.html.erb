@@ -1,0 +1,37 @@
+<%# New review form - nested route (ESaaS §5.6) %>
+<%# URL: GET /movies/:movie_id/reviews/new %>
+
+<h1>New Review for <%= @movie.title %></h1>
+
+<div class="mb-3">
+  <span class="badge bg-secondary"><%= @movie.rating %></span>
+</div>
+
+<%# form_with for Rails 5+ (ESaaS §5.6) %>
+
+<%= form_with(model: [@movie, @review], local: true, class: 'mb-4') do |form| %>
+  <% if @review.errors.any? %>
+    <div class="alert alert-danger">
+      <h4><%= pluralize(@review.errors.count, "error") %> prohibited this review from being saved:</h4>
+      <ul>
+        <% @review.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="mb-3">
+    <%= form.label :potatoes, 'Rating (1-5 potatoes)', class: 'form-label' %>
+    <%= form.select :potatoes, (1..5).map { |n| ["#{'🥔' * n} (#{n})", n] },
+        { prompt: 'Select rating...' },
+        class: 'form-select' %>
+  </div>
+
+  <div class="mb-3">
+    <%= form.submit 'Create Review', class: 'btn btn-primary' %>
+    <%= link_to 'Cancel', movie_reviews_path(@movie), class: 'btn btn-secondary' %>
+  </div>
+<% end %>
+
+<%= link_to 'Back to Reviews', movie_reviews_path(@movie), class: 'btn btn-link' %>

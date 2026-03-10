@@ -1,0 +1,18 @@
+<h1>TMDb Search Results</h1>
+
+<p>
+  This is the Search Results view used in the Lecture 8
+  controller TDD example. In the specs, <code>@movies</code> is
+  populated by <code>Movie.find_in_tmdb</code>, which is stubbed.
+</p>
+
+<% if @movies.present? %>
+  <ul>
+    <% @movies.each do |movie| %>
+      <li><%= movie.respond_to?(:title) ? movie.title : movie.to_s %></li>
+    <% end %>
+  </ul>
+<% else %>
+  <p>No results to display.</p>
+<% end %>
+

@@ -1,0 +1,53 @@
+<%# Reviews index - nested under movies (ESaaS §5.6) %>
+<%# URL: /movies/:movie_id/reviews %>
+
+<h1>Reviews for <%= @movie.title %></h1>
+
+<div class="mb-3">
+  <span class="badge bg-secondary"><%= @movie.rating %></span>
+  <small class="text-muted">Released: <%= @movie.release_date&.strftime('%B %d, %Y') %></small>
+</div>
+
+<% if @reviews.any? %>
+  <div class="list-group mb-4">
+    <% @reviews.each do |review| %>
+      <div class="list-group-item">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h5 class="mb-1">
+              <% review.potatoes.times do %>
+                🥔
+              <% end %>
+              <% (5 - review.potatoes).times do %>
+                ⚪
+              <% end %>
+              (<%= review.potatoes %>/5 potatoes)
+            </h5>
+            <small class="text-muted">
+              by <%= review.moviegoer.name || review.moviegoer.email || 'Anonymous' %>
+              on <%= review.created_at.strftime('%B %d, %Y') %>
+            </small>
+          </div>
+          <% if logged_in? && current_user == review.moviegoer %>
+            <div class="btn-group">
+              <%= link_to 'Edit', edit_movie_review_path(@movie, review), class: 'btn btn-sm btn-outline-primary' %>
+              <%= button_to 'Delete', movie_review_path(@movie, review), method: :delete,
+                  class: 'btn btn-sm btn-outline-danger',
+                  data: { turbo_confirm: 'Are you sure?' } %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+<% else %>
+  <div class="alert alert-info">
+    No reviews yet. Be the first to review this movie!
+  </div>
+<% end %>
+
+<div class="mt-4">
+  <%= link_to 'Add a Review', new_movie_review_path(@movie), class: 'btn btn-primary' %>
+  <%= link_to 'Back to Movie', @movie, class: 'btn btn-secondary' %>
+  <%= link_to 'All Movies', movies_path, class: 'btn btn-link' %>
+</div>
