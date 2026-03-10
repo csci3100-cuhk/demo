@@ -57,8 +57,8 @@ class MoviesController < ApplicationController
   # Run:  bundle exec rspec spec/controllers/movies_controller_spec.rb
   # ============================================================
   def search_tmdb
-    search_terms = params[:search_terms]
-    @movies = Movie.find_in_tmdb(search_terms)
+    # search_terms = params[:search_terms]
+    # @movies = Movie.find_in_tmdb(search_terms)
     # render :search_tmdb
   end
 
