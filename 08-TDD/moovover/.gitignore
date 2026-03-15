@@ -37,3 +37,8 @@
 # Ignore ruby-lsp
 /.ruby-lsp
 /.byebug_history
+
+# SimpleCov coverage reports (Coverage Lecture)
+/coverage
+
+/**/.claude/
