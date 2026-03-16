@@ -31,7 +31,9 @@ class Movie < ApplicationRecord
   # ============================================================
   # Scopes are evaluated lazily and can be "stacked"
 
-  scope :for_kids, -> { where(rating: ['G', 'PG']) }
+  scope :for_kids, lambda {
+    where(rating: ['G', 'PG'])
+  }
 
   scope :with_good_reviews, lambda { |cutoff|
     joins(:reviews)

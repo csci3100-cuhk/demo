@@ -7,6 +7,7 @@
 #   - HTML report at coverage/index.html (open in browser)
 require 'simplecov'
 require 'simplecov-console'
+SimpleCov::Formatter::Console.show_covered = true
 
 SimpleCov.start 'rails' do
   enable_coverage :branch

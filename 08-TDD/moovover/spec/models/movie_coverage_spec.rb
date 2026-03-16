@@ -22,5 +22,13 @@ RSpec.describe Movie, type: :model do
   # ============================================================
   describe ".for_kids" do
     # YOUR SPEC HERE
+    
+    # it "returns only G and PG movies" do
+    #   g_movie  = create(:movie, title: "Toy Story", rating: "G")
+    #   pg_movie = create(:movie, title: "Shrek", rating: "PG")
+    #   r_movie  = create(:movie, title: "Alien", rating: "R")
+
+    #   expect(Movie.for_kids).to contain_exactly(g_movie, pg_movie)
+    # end
   end
 end
