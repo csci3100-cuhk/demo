@@ -1,607 +1,379 @@
-# Handout: TDD and RSpec (ESaaS §8.1–8.8)
+# Handout: Code Coverage Deep Dive (ESaaS §8.6, Slides 62–65)
 
-This demo accompanies **Lecture 8 — TDD and RSpec**.
-It uses the MoovOver Rails app to walk through the exact examples from the
-lecture slides: writing controller specs for a TMDb search feature using
-**Red–Green–Refactor**, **seams**, **doubles**, and **stubs**.
+This demo accompanies the **Coverage Lecture** and builds directly on the
+TDD & RSpec material from Lecture 8. It uses the same MoovOver Rails app.
 
-Work through this handout top to bottom. By the end you should be able to
-explain how TDD drives the implementation of a new controller action, how
-doubles and seams isolate the code under test, and how expectations verify
-behavior.
+By the end of this handout you should be able to:
 
----
-
-## Getting Started
-
-```bash
-cd moovover
-bundle install
-bin/rails db:migrate RAILS_ENV=test
-bundle exec rspec           # run all specs
-```
-
-**Some specs are RED on purpose!** Key implementation code has been
-commented out. Your job is to find and uncomment the right code to turn
-each exercise from RED to GREEN — just like the TDD cycle in the lecture.
-
-There are **3 exercises** spread across 2 files. Look for comments that
-start with `EXERCISE`:
-
-| Exercise | File | What to uncomment | Specs that turn GREEN |
-|----------|------|-------------------|----------------------|
-| 1 | `app/models/movie.rb` | `name_with_rating` method | model spec, fixture/factory specs |
-| 2 | `app/models/movie.rb` | `find_in_tmdb` class method (the seam) | — (needed by Exercise 3) |
-| 3 | `app/controllers/movies_controller.rb` | `search_tmdb` action body | all 3 controller specs |
-
-Work through them in order (1 → 2 → 3). After each exercise, run
-`bundle exec rspec` to see specs go from RED to GREEN.
-
-When all exercises are done you should see:
-
-```
-...............
-
-Finished in 0.12 seconds
-15 examples, 0 failures
-```
+- Set up SimpleCov to collect line and branch coverage
+- Read an HTML coverage report and identify untested code
+- Explain the difference between C0 (line) and C1 (branch) coverage
+- Use coverage to guide where to write new tests
+- Explain why 100% coverage does **not** guarantee correctness
 
 ---
 
-## 1. Project Structure at a Glance
+## Prerequisites
 
-Below is the directory layout with only the files that matter for this
-lecture highlighted. Everything else is standard Rails scaffolding.
-
-```
-moovover/
-├── spec/                                      # ← RSpec lives here
-│   ├── controllers/
-│   │   └── movies_controller_spec.rb          #   TMDb search controller spec (§4)
-│   ├── models/
-│   │   └── movie_spec.rb                      #   model specs: name_with_rating, validations (§8–9)
-│   ├── requests/
-│   │   └── movies_spec.rb                     #   request-level spec: HTML vs JSON (§10)
-│   ├── examples/
-│   │   ├── doubles_spec.rb                    #   standalone doubles example (§6)
-│   │   ├── fixtures_spec.rb                   #   fixtures demo (§7)
-│   │   └── factories_spec.rb                  #   FactoryBot demo (§7)
-│   ├── fixtures/
-│   │   └── movies.yml                         #   fixture data from Slides 50–51
-│   ├── factories/
-│   │   └── movie.rb                           #   factory definition from Slide 52
-│   ├── rails_helper.rb
-│   └── spec_helper.rb
-├── app/
-│   ├── models/movie.rb                        # Movie model with find_in_tmdb seam
-│   ├── controllers/movies_controller.rb       # search_tmdb action
-│   └── views/movies/
-│       └── search_tmdb.html.erb               # Search Results view
-├── config/routes.rb                           # includes search_tmdb route
-└── Gemfile                                    # rspec-rails + factory_bot_rails
-```
+Complete Exercises 1–3 from the TDD handout (`README.md`), or at least
+have the MoovOver project set up with `bundle install` and
+`bin/rails db:migrate RAILS_ENV=test` working.
 
 ---
 
-## 2. The Feature: Look Up Movie in TMDb (ESaaS §8.3, Slides 20–23)
+## 1. What Is Code Coverage?
 
-The lecture introduces a new user story:
+Code coverage measures **how much of your source code is executed** when
+your test suite runs. It does not measure whether your tests are *good*
+— only whether they *touch* certain code.
 
-> **Feature:** look up movie in TMDb  
-> **As** a lazy moviegoer  
-> **So that** I can add movies without filling in info manually  
-> **I want** to look up a movie by title in TMDb
 
-The controller needs to do three things ("the code you wish you had"):
+| Level  | Name              | Question it answers                             |
+| ------ | ----------------- | ----------------------------------------------- |
+| **C0** | Statement / Line  | Was this line executed at least once?           |
+| **C1** | Branch / Decision | Was every branch of every conditional taken?    |
+| **C2** | Path              | Was every possible path through the code taken? |
 
-1. **Call a model method** that searches TMDb for the specified movie.
-2. **Render** a "Search Results" view if matches are found.
-3. **Make the results available** to that view.
 
-We will test all three behaviors *before* we write the controller code —
-that is TDD.
+Most tools report C0 by default. C1 is more thorough. C2 is usually
+impractical for real codebases.
+
+**Key insight:** Coverage tells you what you did **not** test. It cannot
+tell you that what you tested is correct.
 
 ---
 
-## 3. TDD Setup (Slide 27)
+## 2. Setting Up SimpleCov
 
-The slides say: before writing any specs, set up the plumbing so the test
-can at least *run* (even if it fails):
+SimpleCov is already configured in this project. Here is what was done
+(for reference if you want to add it to your own projects):
 
-### 3.1 Add a route
+### 2.1 Gemfile
 
-**File:** `config/routes.rb`
+Two gems were added to the `:test` group:
 
 ```ruby
-get "/movies/search_tmdb", to: "movies#search_tmdb", as: "search_tmdb_movies"
-```
-
-### 3.2 Create an empty view
-
-**File:** `app/views/movies/search_tmdb.html.erb` — exists so the
-controller can render *something*.
-
-### 3.3 Create a placeholder controller action
-
-**File:** `app/controllers/movies_controller.rb`
-
-```ruby
-def search_tmdb
-  search_terms = params[:search_terms]
-  @movies = Movie.find_in_tmdb(search_terms)
-  render :search_tmdb
+group :test do
+  gem "simplecov", require: false
+  gem "simplecov-console", require: false
 end
 ```
 
-### 3.4 Add the model seam
+- `simplecov` — the coverage library. `require: false` because it must
+be loaded manually at the very top of the test helper.
+- `simplecov-console` — prints a summary table to the terminal.
 
-Calling TMDb is the model's responsibility, but the real method does not
-exist yet. We add a **seam** — a place we can intercept behavior without
-changing app code:
+### 2.2 spec/spec_helper.rb
 
-**File:** `app/models/movie.rb`
+These lines appear at the **very top** of the file, before any other
+`require`:
 
 ```ruby
-def self.find_in_tmdb(_search_terms)
-  raise "TMDb search not implemented – this method is intended to be stubbed in tests"
+require 'simplecov'
+require 'simplecov-console'
+
+SimpleCov.start 'rails' do
+  enable_coverage :branch
+
+  add_filter '/spec/'
+  add_filter '/config/'
+  add_filter '/db/'
+
+  formatter SimpleCov::Formatter::MultiFormatter.new([
+    SimpleCov::Formatter::HTMLFormatter,
+    SimpleCov::Formatter::Console
+  ])
+
+  minimum_coverage line: 70, branch: 50
 end
 ```
 
-In the specs we will **stub** this method so it never raises, and never
-calls the real TMDb API.
+What each option does:
+
+
+| Option                    | Purpose                                                            |
+| ------------------------- | ------------------------------------------------------------------ |
+| `'rails'`                 | Pre-configured profile that knows about Rails directories          |
+| `enable_coverage :branch` | Enables C1 branch coverage in addition to C0 line coverage         |
+| `add_filter`              | Excludes directories from the report (we only care about app code) |
+| `HTMLFormatter`           | Generates `coverage/index.html` — the interactive report           |
+| `Console`                 | Prints a summary table to the terminal after each run              |
+| `minimum_coverage`        | Fails the test suite if coverage drops below the threshold         |
+
+
+### 2.3 .gitignore
+
+The `coverage/` directory is gitignored because it is generated output.
 
 ---
 
-## 4. The Controller Spec — Three Behaviors (Slides 25–33, 39)
+## 3. Reading the HTML Report
 
-**File:** `spec/controllers/movies_controller_spec.rb`
-
-```ruby
-require 'rails_helper'
-
-RSpec.describe MoviesController, type: :controller do
-  describe 'searching TMDb' do
-    it 'calls the model method that performs TMDb search' do
-      expect(Movie).to receive(:find_in_tmdb).with('hardware')
-
-      get :search_tmdb, params: { search_terms: 'hardware' }
-    end
-
-    it 'selects the Search Results template for rendering' do
-      allow(Movie).to receive(:find_in_tmdb)
-
-      get :search_tmdb, params: { search_terms: 'hardware' }
-
-      expect(response).to render_template('search_tmdb')
-    end
-
-    it 'makes the TMDb search results available to that template' do
-      fake_results = [double('Movie'), double('Movie')]
-      allow(Movie).to receive(:find_in_tmdb).and_return(fake_results)
-
-      get :search_tmdb, params: { search_terms: 'hardware' }
-
-      expect(assigns[:movies]).to eq(fake_results)
-      expect(assigns[:movies]).to be_a_kind_of(Enumerable)
-    end
-  end
-end
-```
-
-### Walking through each spec
-
-#### Spec 1 — "calls the model method" (Slide 30)
-
-```ruby
-expect(Movie).to receive(:find_in_tmdb).with('hardware')
-get :search_tmdb, params: { search_terms: 'hardware' }
-```
-
-- `expect(Movie).to receive(:find_in_tmdb)` is a **message expectation**
-  (mock). It tells RSpec: "this spec should **fail** unless the controller
-  calls `Movie.find_in_tmdb` with the argument `'hardware'` before the spec
-  finishes."
-- `get :search_tmdb` simulates submitting the search form to the controller
-  action.
-- The expectation line comes *before* the `get` — RSpec sets up the
-  expectation first, then checks it after the action runs.
-
-#### Spec 2 — "selects the Search Results template" (Slides 25, 33)
-
-```ruby
-allow(Movie).to receive(:find_in_tmdb)
-get :search_tmdb, params: { search_terms: 'hardware' }
-expect(response).to render_template('search_tmdb')
-```
-
-- `allow` is a **method stub** — it intercepts the call to
-  `find_in_tmdb` and returns `nil`, preventing the real (unimplemented)
-  method from raising an error.
-- `render_template('search_tmdb')` (Slide 25) verifies the controller
-  rendered the correct view template. This matcher comes from the
-  `rails-controller-testing` gem.
-- Note the difference: `expect(...).to receive` = "this **must** be called"
-  (mock); `allow(...).to receive` = "if called, return this" (stub).
-
-#### Spec 3 — "makes results available to the template" (Slides 25, 39)
-
-```ruby
-fake_results = [double('Movie'), double('Movie')]
-allow(Movie).to receive(:find_in_tmdb).and_return(fake_results)
-get :search_tmdb, params: { search_terms: 'hardware' }
-expect(assigns[:movies]).to eq(fake_results)
-expect(assigns[:movies]).to be_a_kind_of(Enumerable)
-```
-
-- `double('Movie')` creates a **stunt double** — a fake object that
-  stands in for a real `Movie`. We don't care about its attributes here;
-  we just need something the view can iterate over.
-- `assigns[:movies]` (Slide 25) is a hash of all instance variables set
-  by the controller — `assigns[:movies]` reads `@movies`. This comes from
-  the `rails-controller-testing` gem.
-- `be_a_kind_of(Enumerable)` (Slide 25) checks that the results are
-  iterable, which is all the view needs to loop over them.
-- `and_return(fake_results)` makes the stub return our fake list.
-- We verify that the controller set `@movies` to exactly the fake results.
-  This is how the view will access the data.
-
-### Concepts to notice
-
-| Concept | Where you see it |
-|---------|-----------------|
-| **Seam** | `Movie.find_in_tmdb` — we intercept it without changing the controller |
-| **Method stub** (`allow`) | Intercepts `find_in_tmdb` so it doesn't hit TMDb |
-| **Message expectation** (`expect...to receive`) | Verifies the controller *actually calls* the model method |
-| **Stunt double** (`double`) | Fake Movie objects returned by the stub |
-| **`render_template`** (Slide 25) | Checks which view template the controller rendered |
-| **`assigns[:movies]`** (Slide 25) | Reads the `@movies` instance variable set by the controller |
-| **`be_a_kind_of`** (Slide 25) | Checks the results are Enumerable (iterable by the view) |
-| **Arrange–Act–Assert** | Each spec: set up stub → call controller → check result |
-
----
-
-## 5. Great Expectations — RSpec Matchers (Slides 17–18)
-
-The specs above use several RSpec matchers. Here is a quick reference
-from the slides:
-
-```ruby
-expect(x).to eq('Ruby')             # equality
-expect(x).to be_truthy              # truthy value
-expect(x).to match(/regex/)         # regex match
-expect(x).to have_key('key')        # hash key
-expect(x).to be_empty               # empty collection
-expect(x).to be_valid               # implicitly calls x.valid?
-
-expect { movie.save! }.to raise_error
-expect { review.destroy }.to change { Review.count }.by(-1)
-```
-
----
-
-## 6. Stunt Doubles & the Mock Trainwreck Pitfall (Slides 38, 56)
-
-**File:** `spec/examples/doubles_spec.rb`
-
-```ruby
-RSpec.describe 'Doubles and seams' do
-  it 'uses a stunt double for a Movie-like object' do
-    award = double('Award', type: 'Oscar')
-    director = double('Director', name: 'JJ Abrams')
-    movie = double('Movie', title: 'Snowden', award: award, director: director)
-
-    expect(movie.title).to eq('Snowden')
-    expect(movie.award.type).to eq('Oscar')
-    expect(movie.director.name).to eq('JJ Abrams')
-  end
-end
-```
-
-From the slides:
-
-- `double('Movie')` creates a bare stand-in.
-- `double('Movie', title: 'Snowden')` adds canned responses.
-- `allow(m).to receive(:title).and_return('Snowden')` is the longer form.
-- **Pitfall — mock trainwreck (slide 56):** chaining many doubles
-  (`movie.award.type`, `movie.director.name`) can make tests fragile and
-  tightly coupled to the internal structure of your objects. Use doubles
-  sparingly.
-
----
-
-## 7. Fixtures & Factories (Slides 49–53)
-
-### When you need the real thing (Slide 49)
-
-Sometimes a double is not enough — you need a real ActiveRecord object.
-The slides describe two approaches. **Both are included in this demo** so
-you can run them yourself.
-
-### Approach A — Fixtures: static YAML data (Slides 50–51)
-
-> Fixtures are YAML files that Rails loads into the test database before
-> each spec. Good for truly static data that never changes.
-
-**File:** `spec/fixtures/movies.yml`
-
-```yaml
-milk_movie:
-  id: 1
-  title: Milk
-  rating: R
-  release_date: 2008-11-26
-
-food_inc_movie:
-  id: 2
-  title: "Food, Inc."
-  release_date: 2008-09-07
-```
-
-**File:** `spec/examples/fixtures_spec.rb` — run with
-`bundle exec rspec spec/examples/fixtures_spec.rb`
-
-```ruby
-RSpec.describe "Fixtures demo", type: :model do
-  fixtures :movies
-
-  it "loads the milk_movie fixture by name" do
-    movie = movies(:milk_movie)
-
-    expect(movie.title).to eq("Milk")
-    expect(movie.rating).to eq("R")
-  end
-
-  it "can use fixture data with model methods" do
-    movie = movies(:milk_movie)
-
-    expect(movie.name_with_rating).to eq("Milk (R)")
-  end
-end
-```
-
-### Approach B — Factories: create what you need per-test (Slides 52–53)
-
-> Factories (via the `factory_bot_rails` gem) generate objects on the fly.
-> `sequence` (Slide 53) ensures each call produces unique data — keeping
-> tests **Independent** (the "I" in FIRST).
-
-**File:** `spec/factories/movie.rb`
-
-```ruby
-FactoryBot.define do
-  factory :movie do
-    sequence(:title) { |n| "Film #{n}" }
-    rating { "PG" }
-    release_date { Date.new(2020, 1, 1) }
-  end
-end
-```
-
-Every call to `build(:movie)` increments `n`, producing `"Film 1"`,
-`"Film 2"`, `"Film 3"`, etc. — no two tests share the same title.
-
-**File:** `spec/examples/factories_spec.rb` — run with
-`bundle exec rspec spec/examples/factories_spec.rb`
-
-```ruby
-RSpec.describe "Factories demo", type: :model do
-  it "generates a unique title each time via sequence (Slide 53)" do
-    movie_a = build(:movie)
-    movie_b = build(:movie)
-
-    expect(movie_a.title).not_to eq(movie_b.title)
-  end
-
-  it "overrides factory defaults (Slide 52: name_with_rating)" do
-    movie = build(:movie, title: "Milk")
-
-    expect(movie.name_with_rating).to eq("Milk (PG)")
-  end
-
-  it "creates a movie saved to the database" do
-    movie = create(:movie, title: "Inception", rating: "PG-13")
-
-    expect(movie).to be_persisted
-    expect(Movie.find(movie.id).title).to eq("Inception")
-  end
-end
-```
-
-### `build` vs `create`
-
-| Method | What it does | Hits DB? |
-|--------|-------------|----------|
-| `build(:movie)` | `Movie.new(...)` with factory defaults | No |
-| `create(:movie)` | `Movie.create!(...)` with factory defaults | Yes |
-
-Use `build` when you only need an in-memory object (faster).
-Use `create` when the test needs the record to exist in the database.
-
-### When to use fixtures vs factories?
-
-| Data | Fixture or Factory? |
-|------|-------------------|
-| TMDb API key | Fixture (static config that never changes) |
-| Movie for a specific test | Factory (create per-test with custom attributes) |
-| Admin superuser account | Prefer Fixture (static, shared across tests), but Factory also OK |
-
----
-
-## 8. Red–Green–Refactor: `Movie#name_with_rating` (Slides 7, 49, 52)
-
-This is a small standalone example showing the TDD cycle on a model
-method. The slides reference `name_with_rating` in the Fixtures &
-Factories section.
-
-### 8.1 RED — write the spec first
-
-**File:** `spec/models/movie_spec.rb`
-
-```ruby
-describe '#name_with_rating' do
-  it "returns 'Title (RATING)' for a movie" do
-    movie = Movie.new(title: 'Milk', rating: 'PG', release_date: Date.new(2008, 11, 26))
-
-    expect(movie.name_with_rating).to eq('Milk (PG)')
-  end
-end
-```
-
-Run it:
-
-```bash
-bundle exec rspec spec/models/movie_spec.rb:4
-```
-
-It fails with `NoMethodError: undefined method 'name_with_rating'` — **RED**.
-
-### 8.2 GREEN — simplest code to pass
-
-**File:** `app/models/movie.rb`
-
-```ruby
-def name_with_rating
-  "#{title} (#{rating})"
-end
-```
-
-Run again → **GREEN**.
-
-### 8.3 REFACTOR — nothing to clean up
-
-The implementation is already minimal. Move on to the next behavior.
-
----
-
-## 9. FIRST — Properties of Good Unit Tests (Slides 12–13)
-
-The model validation specs illustrate FIRST:
-
-**File:** `spec/models/movie_spec.rb`
-
-```ruby
-describe 'validations' do
-  it 'is invalid without a title' do
-    movie = Movie.new(release_date: Date.new(2000, 1, 1))
-    expect(movie).not_to be_valid
-    expect(movie.errors[:title]).to be_present
-  end
-
-  it 'is invalid with release_date before 1930' do
-    movie = Movie.new(title: 'Oldie', release_date: Date.new(1920, 1, 1))
-    expect(movie).not_to be_valid
-    expect(movie.errors[:release_date]).to be_present
-  end
-end
-```
-
-| Letter | Property | How this spec satisfies it |
-|--------|----------|--------------------------|
-| **F** | Fast | No DB writes — `Movie.new` only |
-| **I** | Independent | Each spec creates its own `Movie` |
-| **R** | Repeatable | No randomness or time-of-day dependency |
-| **S** | Self-checking | `expect` automatically passes or fails |
-| **T** | Timely | Written alongside the validations |
-
----
-
-## 10. Coverage & the Testing Pyramid (Slides 62–65)
-
-| Level | Example in this demo | Speed | Mocks? |
-|-------|---------------------|-------|--------|
-| **Unit** (model specs) | `spec/models/movie_spec.rb` | Fastest | Few/none |
-| **Functional** (controller specs) | `spec/controllers/movies_controller_spec.rb` | Fast | Stubs & doubles |
-| **Integration** (request specs) | `spec/requests/movies_spec.rb` | Slower | None |
-
-From the slides:
-
-- Use **coverage to find untested code**, not as a "100% or bust" rule.
-- Each level finds bugs the other misses — defense in depth.
-
----
-
-## 11. Key Concepts Summary
-
-| Concept | Where you see it in this demo |
-|---------|-------------------------------|
-| **Red–Green–Refactor** | `name_with_rating`: spec fails → add method → spec passes |
-| **The code you wish you had** | `Movie.find_in_tmdb` — tested before implemented |
-| **Seam** | `Movie.find_in_tmdb` is the place we intercept without changing the controller |
-| **Method stub** (`allow`) | `allow(Movie).to receive(:find_in_tmdb)` returns canned data |
-| **Message expectation** (`expect...to receive`) | Verifies the controller calls `find_in_tmdb` |
-| **Stunt double** (`double`) | `fake_results = [double('Movie'), double('Movie')]` |
-| **FIRST** | All model specs are fast, independent, repeatable, self-checking, timely |
-| **Arrange–Act–Assert** | Every spec: setup → action → expectation |
-| **Fixtures vs Factories** | Lecture examples shown in Section 7 |
-| **Coverage levels** | Unit / Functional / Integration pyramid |
-
----
-
-## 12. Hands-On Exercises (Red → Green)
-
-The implementation code is **commented out** in the source files.
-Work through the exercises in order. After each one, run
-`bundle exec rspec` and observe specs turning from RED to GREEN.
-
-### Exercise 1 — Model TDD: `name_with_rating`
-
-1. Run `bundle exec rspec spec/models/movie_spec.rb` — observe the failure:
-   `NoMethodError: undefined method 'name_with_rating'`
-2. Open `app/models/movie.rb`, find the `EXERCISE 1` comment, and
-   **uncomment** the `name_with_rating` method.
-3. Run the spec again — it should be GREEN.
-
-**What you learned:** This is the Red–Green cycle. The spec existed first
-(the code you wish you had), then you added the implementation.
-
-### Exercise 2 — Add the Seam: `find_in_tmdb`
-
-1. Run `bundle exec rspec spec/controllers/movies_controller_spec.rb` —
-   observe: `Movie does not implement: find_in_tmdb`
-2. Open `app/models/movie.rb`, find the `EXERCISE 2` comment, and
-   **uncomment** the `find_in_tmdb` class method.
-3. Run the controller spec again — the error message changes (but specs
-   still fail). This is progress! The seam now exists, but the controller
-   doesn't use it yet.
-
-**What you learned:** A seam is a method you can intercept (stub) without
-changing the code that calls it. The method doesn't need a real
-implementation — it just needs to *exist* so RSpec can stub it.
-
-### Exercise 3 — Controller TDD: `search_tmdb` action
-
-1. Open `app/controllers/movies_controller.rb`, find the `EXERCISE 3`
-   comment, and **uncomment** the three lines inside `search_tmdb`.
-2. Run `bundle exec rspec spec/controllers/movies_controller_spec.rb` —
-   all 3 specs should be GREEN.
-
-**What you learned:** The controller action does three things that match
-the three specs: (1) calls `Movie.find_in_tmdb`, (2) renders the
-`search_tmdb` template, (3) assigns `@movies` for the view.
-
-### Verify: all GREEN
+Run the full test suite:
 
 ```bash
 bundle exec rspec
-# 15 examples, 0 failures
 ```
 
-### Bonus Exercises
+After the run, open the HTML report:
 
-Try these after completing Exercises 1–3:
+```bash
+open coverage/index.html    # macOS
+```
 
-1. **Re-comment the controller body** (Exercise 3) and run specs. Read
-   each failure message — can you match each failure to a specific `it`
-   block?
+### What you will see
 
-2. **Add a sad-path spec.** What should happen if `find_in_tmdb` returns
-   `[]`? Write a new `it` block that stubs it to return `[]` and checks
-   the response.
+1. **Overall summary** — total line coverage %, total branch coverage %,
+  number of files, number of lines.
+2. **Per-file table** — each file with its line and branch coverage
+  percentage. Files are sorted by coverage (lowest first).
+3. **File detail view** — click any file name to see source code with
+  colored lines:
+  - **Green** = executed during tests
+  - **Red** = never executed
+  - **Dard Red** (branches) = some branches taken, others missed
 
-3. **Break a stub on purpose.** In spec 1, change `'hardware'` to
-   `'software'` in `with('hardware')`. Run it and read the mismatch
-   message.
+### Try it now
 
-4. **Add a model spec for a scope.** Write a spec for `Movie.for_kids`
-   that creates movies with different ratings and checks only G and PG
-   are returned.
+1. Run `bundle exec rspec` (some specs will fail — that is expected
+  if you haven't done Exercises 1–3 yet).
+2. Open `coverage/index.html`.
+3. Click on `app/models/movie.rb` — notice the red lines for the scopes
+  (`for_kids`, `with_good_reviews`, etc.) and for the commented-out
+   methods.
+4. Click on `app/controllers/movies_controller.rb` — notice that only
+  `search_tmdb` has any green (and only if you completed Exercise 3).
+   The CRUD actions (`create`, `update`, `destroy`) are entirely red.
+
+---
+
+## 4. C0 vs C1 — Line Coverage vs Branch Coverage
+
+### C0 Example
+
+Consider this method from `movie.rb`:
+
+```ruby
+def released_1930_or_later
+  return if release_date.blank?
+  if release_date < Date.parse('1 Jan 1930')
+    errors.add(:release_date, 'must be 1930 or later')
+  end
+end
+```
+
+A test that creates a movie with `release_date: Date.new(1920, 1, 1)`
+will execute every line — **100% C0**. But it only tests the path where
+the release_date is not blank.
+
+### C1 Example
+
+The same method has **branches**:
+
+- `release_date.blank?` → true (early return) or false (continue)
+- `release_date < Date.parse('1 Jan 1930')` → true (add error) or false (skip)
+
+C1 coverage requires tests that exercise **both** sides of each
+conditional. The SimpleCov HTML report shows this with dark red highlights
+and branch annotations like `[then]` and `[else]`.
+
+### The `grandfathered?` method
+
+```ruby
+def grandfathered?
+  release_date.present? && release_date < @@grandfathered_date
+end
+```
+
+This short-circuit `&&` has three meaningful paths:
+
+
+| `release_date.present?` | `< grandfathered_date` | Result |
+| ----------------------- | ---------------------- | ------ |
+| false                   | (not evaluated)        | false  |
+| true                    | true                   | true   |
+| true                    | false                  | false  |
+
+
+Look at the branch coverage in the HTML report — how many of these
+three paths do the existing tests cover?
+
+---
+
+## 5. Hands-On Exercises
+
+### Exercise 4 — Close the Gap: Test a Scope
+
+**File:** `spec/models/movie_coverage_spec.rb`
+
+1. Open `coverage/index.html` and look at `movie.rb`. Find the `for_kids`
+  scope — it should be red (uncovered).
+2. Open `spec/models/movie_coverage_spec.rb`. You will see a skeleton:
+  ```ruby
+   describe ".for_kids" do
+     # YOUR SPEC HERE
+   end
+  ```
+3. Write a spec that:
+  - Creates movies with different ratings (G, PG, R) using
+   `create(:movie, ...)` from FactoryBot
+  - Calls `Movie.for_kids`
+  - Verifies that only G and PG movies are returned
+4. Run `bundle exec rspec spec/models/movie_coverage_spec.rb` — your new
+  spec should pass.
+5. Run `bundle exec rspec` (full suite) and re-open `coverage/index.html`.
+  The `for_kids` scope line should now be **green**.
+
+**Hint** (click to reveal)
+
+```ruby
+it "returns only G and PG movies" do
+  g_movie  = create(:movie, title: "Toy Story", rating: "G")
+  pg_movie = create(:movie, title: "Shrek", rating: "PG")
+  r_movie  = create(:movie, title: "Alien", rating: "R")
+
+  expect(Movie.for_kids).to contain_exactly(g_movie, pg_movie)
+end
+```
+
+---
+
+### Exercise 5 — Uncomment Exercises 1–3 and Watch Coverage Jump
+
+This exercise connects the TDD lecture to the coverage lecture.
+
+1. Note the **current** coverage percentage (from the terminal output or
+  the HTML report).
+2. Complete Exercises 1–3 from the TDD handout:
+  - Exercise 1: Uncomment `name_with_rating` in `app/models/movie.rb`
+  - Exercise 2: The `find_in_tmdb` seam is already uncommented
+  - Exercise 3: Uncomment the body of `search_tmdb` in
+  `app/controllers/movies_controller.rb`
+3. Run `bundle exec rspec` again.
+4. Compare the **new** coverage percentage with the old one.
+
+**What you should observe:**
+
+- Several previously-failing specs now pass (the ones that depend on
+`name_with_rating` and `search_tmdb`)
+- Line coverage for `movie.rb` and `movies_controller.rb` increases
+- The TDD cycle naturally produces coverage: when you write a test first
+and then write just enough code to pass it, that code is covered by
+definition
+
+---
+
+### Exercise 6 — The False Security Demo
+
+**Code:** `app/models/shipping_calculator.rb`
+
+```ruby
+class ShippingCalculator
+  def self.cost(weight)
+    if weight > 10
+      weight * 2.0
+    else
+      weight * 1.5
+    end
+  end
+end
+```
+
+**Spec:** `spec/examples/false_security_spec.rb`
+
+```ruby
+it "calculates shipping for a heavy item" do
+  expect(ShippingCalculator.cost(15)).to eq(30.0)
+end
+
+it "calculates shipping for a light item" do
+  expect(ShippingCalculator.cost(5)).to eq(7.5)
+end
+```
+
+1. Run this spec:
+   ```bash
+   bundle exec rspec spec/examples/false_security_spec.rb
+   ```
+   Both tests pass.
+
+2. Open `coverage/index.html` and click on `shipping_calculator.rb`.
+   Every line is **green** — 100% line coverage and 100% branch coverage.
+
+3. Now answer: **What happens when `weight == 10`?**
+   - Is 10 "heavy" (cost = 20.0) or "light" (cost = 15.0)?
+   - The code says `> 10`, so 10 is "light" — but is that correct?
+   - The specs never test this boundary, yet coverage is perfect.
+
+4. **Discussion:** Coverage measures **execution**, not **correctness**.
+   100% coverage means every line was reached — it does not mean every
+   *behavior* was verified. Boundary conditions, off-by-one errors, and
+   missing requirements can all hide behind green coverage bars.
+
+**Bonus:** Write a third spec that tests `ShippingCalculator.cost(10)`.
+What should the expected value be? You need the *requirements* (not just
+the code) to answer this.
+
+---
+
+## 6. Key Takeaways
+
+
+| Principle                                | Explanation                                                                         |
+| ---------------------------------------- | ----------------------------------------------------------------------------------- |
+| **Coverage finds what you did NOT test** | It is a diagnostic tool, not a quality guarantee                                    |
+| **C0 < C1 < C2**                         | Each level catches more gaps, but costs more effort                                 |
+| **100% coverage ≠ bug-free**             | Boundary bugs, logic errors, and missing requirements can hide behind full coverage |
+| **Diminishing returns**                  | Going from 80% to 90% is valuable; 95% to 100% often is not worth the effort        |
+| **Use `minimum_coverage` as a ratchet**  | Prevent coverage from decreasing as the codebase grows                              |
+| **Industry targets**                     | Most teams aim for 80–90% C0; branch coverage targets are usually lower (60–80%)    |
+| **TDD gives you coverage for free**      | When you write the test first, the code you add is covered by definition            |
+
+
+---
+
+## 7. Quick Reference
+
+### Useful commands
+
+```bash
+bundle exec rspec                           # run all specs + generate coverage
+bundle exec rspec spec/models/              # run only model specs
+bundle exec rspec --format documentation    # verbose spec names
+open coverage/index.html                    # open HTML coverage report (macOS)
+```
+
+### SimpleCov configuration cheat sheet
+
+```ruby
+SimpleCov.start 'rails' do
+  enable_coverage :branch              # C1 branch coverage
+  add_filter '/spec/'                  # exclude test files from report
+  add_group 'Models', 'app/models'     # group files in the HTML report
+  add_group 'Controllers', 'app/controllers'
+  minimum_coverage line: 90, branch: 70  # fail if coverage drops below
+  refuse_coverage_drop                 # fail if coverage decreases from last run
+end
+```
+
+---
+
+## 8. Bonus Exercises
+
+Try these after completing Exercises 4–6:
+
+1. **Test another scope.** Look at `with_good_reviews` in `movie.rb`.
+  Write a spec that creates movies with reviews of different ratings and
+   verifies the scope filters correctly. Watch the coverage for that
+   line turn green.
+2. **Explore branch coverage.** Find a dark-red-highlighted line in the
+  HTML report (partially covered branches). Write a spec that covers
+   the missing branch. Hint: look at `released_1930_or_later` and
+   `grandfathered?`.
+3. **Raise the bar.** Change `minimum_coverage` in `spec_helper.rb` to
+  `line: 80`. Run `bundle exec rspec` — does the suite fail? Write
+   enough tests to make it pass again.
+4. **Add `refuse_coverage_drop`.** Add this line to the SimpleCov config.
+  Now delete a spec file and run again — SimpleCov will refuse to let
+   coverage decrease. This is how teams use coverage as a "ratchet" in CI.
+
