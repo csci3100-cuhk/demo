@@ -1,9 +1,5 @@
 # Lecture 11 handout: Design patterns
 
-_Based on [`slides.pdf`](slides.pdf) for CSCI3100 Engineering Software as a Service_
-
----
-
 ## Patterns
 
 ### What is a design pattern?
