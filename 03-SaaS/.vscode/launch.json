@@ -1,0 +1,33 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "rdbg",
+      "name": "Debug Sinatra (app.rb)",
+      "request": "launch",
+      "script": "${workspaceFolder}/app.rb",
+      "cwd": "${workspaceFolder}",
+      "useBundler": true,
+      "stopAtEntry": false,
+      "showDebuggerOutput": true
+    },
+    {
+      "type": "rdbg",
+      "name": "Debug Sinatra (rackup)",
+      "request": "launch",
+      "script": "${workspaceFolder}/rackup_debug.rb",
+      "cwd": "${workspaceFolder}",
+      "useBundler": true,
+      "stopAtEntry": false,
+      "showDebuggerOutput": true
+    },
+    {
+      "type": "ruby",
+      "name": "Debug with byebug (rackup)",
+      "request": "launch",
+      "program": "${workspaceFolder}/rackup_debug.rb",
+      "useBundler": true,
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
