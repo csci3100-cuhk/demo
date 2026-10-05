@@ -61,16 +61,12 @@ rails runner "puts 'Movies: ' + Movie.count.to_s; puts 'Moviegoers: ' + Moviegoe
 
 ## 1. DRYing Out MVC (ESaaS §5.1)
 
-**Lecture Slides: 2-23**
-
 The DRY (Don't Repeat Yourself) principle is central to Rails. Cross-cutting concerns are handled through:
 - **Validations** - for models
 - **Controller Filters** - for controllers  
 - **Partials** - for views
 
 ### 1.1 Model Validations
-
-**Lecture Slides: 7-12**
 
 > *"Goal: enforce that movie names must be less than 40 characters"*
 
@@ -147,8 +143,6 @@ in `movie.rb`
 
 ### 1.2 Controller Filters
 
-**Lecture Slides: 13-20**
-
 > *"Controller Filters provide a way to share functionality before each action"*
 
 Filters use `before_action` to run code before controller actions.
@@ -214,8 +208,6 @@ end
 
 ### 1.3 Partials
 
-**Lecture Slides: 21-23**
-
 > *"render inside a view allows sharing code between views"*
 
 Partials are reusable view fragments. By convention, their filenames start with `_`.
@@ -270,8 +262,6 @@ Partials are reusable view fragments. By convention, their filenames start with 
 ---
 
 ## 2. Single Sign-On & Third-Party Authentication (ESaaS §5.2)
-
-**Lecture Slides: 24-35**
 
 > *"OmniAuth gem helps a lot by providing uniform API to different strategies"*
 
@@ -411,8 +401,6 @@ rails server
 
 ## 3. ActiveRecord Associations (ESaaS §5.3)
 
-**Lecture Slides: 41-45**
-
 > *"After setting things up correctly, you don't have to worry (much) about keys and joins"*
 
 ### Basic Association Declaration
@@ -493,8 +481,6 @@ review.moviegoer.name
 
 ## 4. Associations & Foreign Keys (ESaaS §5.4)
 
-**Lecture Slides: 36-40**
-
 ### Creating Associations with Migrations
 
 **File: `db/migrate/20260130000002_create_reviews.rb`**
@@ -538,8 +524,6 @@ Look for the `reviews` table with `movie_id` and `moviegoer_id` columns.
 ---
 
 ## 5. Through-Associations (ESaaS §5.5)
-
-**Lecture Slides: 49-54**
 
 > *"Scenario: Moviegoers rate Movies - a moviegoer can have many reviews, but a movie can also have many reviews"*
 
@@ -635,8 +619,6 @@ alice.reviews.joins(:movie).where(movies: { rating: 'R' }).count
 
 ## 6. Referential Integrity
 
-**Lecture Slides: 55-56**
-
 > *"What if we delete a movie with reviews?"*
 
 ### The Problem
@@ -686,198 +668,6 @@ Review.find(review_id)
 
 ---
 
-## 7. RESTful Routes for Associations (ESaaS §5.6)
-
-**Lecture Slides: 57-63**
-
-> *"Nested Route: access reviews by going 'through' a movie"*
-
-### Nested Routes Declaration
-
-**File: `config/routes.rb`**
-
-```ruby
-resources :movies do
-  resources :reviews
-end
-```
-
-### Generated Routes
-
-Run `rails routes | grep review` to see:
-
-```
-       Prefix Verb   URI Pattern                              Controller#Action
-movie_reviews GET    /movies/:movie_id/reviews                reviews#index
-              POST   /movies/:movie_id/reviews                reviews#create
-new_movie_review GET /movies/:movie_id/reviews/new            reviews#new
-edit_movie_review GET /movies/:movie_id/reviews/:id/edit      reviews#edit
- movie_review GET    /movies/:movie_id/reviews/:id            reviews#show
-              PATCH  /movies/:movie_id/reviews/:id            reviews#update
-              DELETE /movies/:movie_id/reviews/:id            reviews#destroy
-```
-
-**Key insight:** `params[:movie_id]` gives you the movie ID, `params[:id]` gives you the review ID.
-
-### Controller Implementation
-
-**File: `app/controllers/reviews_controller.rb`**
-
-```ruby
-class ReviewsController < ApplicationController
-  before_action :set_movie
-
-  # GET /movies/:movie_id/reviews/new
-  def new
-    @review ||= @movie.reviews.new
-  end
-
-  # POST /movies/:movie_id/reviews
-  def create
-    # build sets the movie_id foreign key automatically!
-    @review = @movie.reviews.build(review_params)
-    @review.moviegoer = current_user
-
-    if @review.save
-      redirect_to movie_reviews_path(@movie)
-    else
-      render :new
-    end
-  end
-
-  private
-
-  def set_movie
-    @movie = Movie.find(params[:movie_id])
-  end
-end
-```
-
-### View with Nested Routes
-
-**File: `app/views/reviews/new.html.erb`**
-
-```erb
-<%# form_with generates the correct nested route %>
-<%= form_with(model: [@movie, @review]) do |form| %>
-  <%= form.select :potatoes, (1..5) %>
-  <%= form.submit %>
-<% end %>
-
-<%# Link helpers for nested routes %>
-<%= link_to 'All Reviews', movie_reviews_path(@movie) %>
-<%= link_to 'Back to Movie', movie_path(@movie) %>
-```
-
-#### Try It
-
-1. Go to http://127.0.0.1:3000/movies
-2. Click on any movie (e.g., "Aladdin")
-3. Click "All Reviews" - notice the URL: `/movies/1/reviews`
-4. Click "Add a Review" - notice the URL: `/movies/1/reviews/new`
-5. The review is automatically associated with that movie!
-
----
-
-## 8. (Optional) DRYing Out Queries with Scopes (ESaaS §5.8)
-
-**Lecture Slides: 66-69**
-
-> *"Scopes are evaluated lazily! Use scopes for common patterns."*
-
-### Scope Declarations
-
-**File: `app/models/movie.rb`**
-
-```ruby
-class Movie < ApplicationRecord
-  # Simple scope - movies appropriate for kids
-  scope :for_kids, -> { where(rating: ['G', 'PG']) }
-
-  # Scope with parameter - movies with average review > cutoff
-  scope :with_good_reviews, lambda { |cutoff|
-    joins(:reviews)
-      .group(:id)
-      .having('AVG(reviews.potatoes) > ?', cutoff)
-  }
-
-  # Scope with default parameter
-  scope :recently_reviewed, lambda { |n = 7|
-    joins(:reviews)
-      .where('reviews.created_at >= ?', n.days.ago)
-      .distinct
-  }
-
-  # Another example
-  scope :with_many_reviews, lambda { |count = 3|
-    joins(:reviews)
-      .group(:id)
-      .having('COUNT(reviews.id) >= ?', count)
-  }
-end
-```
-
-### Scopes Can Be Chained!
-
-```ruby
-# Find kids movies with good reviews
-Movie.for_kids.with_good_reviews(4)
-
-# Find recently reviewed movies for kids
-Movie.for_kids.recently_reviewed(30)
-
-# Order matters? Not really - they're composable!
-Movie.with_good_reviews(4).for_kids
-Movie.for_kids.with_good_reviews(4)  # Same result
-```
-
-#### Try It - Rails Console
-
-```ruby
-# Movies for kids (G or PG)
-Movie.for_kids.pluck(:title, :rating)
-# => [["Aladdin", "G"], ["2001: A Space Odyssey", "G"], ["The Incredibles", "PG"], ...]
-
-# Movies with average rating > 4
-Movie.with_good_reviews(4).pluck(:title)
-# => ["Aladdin", "The Terminator"]
-
-# Chain scopes together
-Movie.for_kids.with_good_reviews(4).pluck(:title)
-# => ["Aladdin", "The Incredibles"]
-
-# Recently reviewed (last 30 days)
-Movie.recently_reviewed(30).pluck(:title)
-
-# See the SQL generated
-Movie.for_kids.with_good_reviews(4).to_sql
-```
-
-### Why Scopes?
-
-1. **DRY** - Define complex queries once, use everywhere
-2. **Readable** - `Movie.for_kids` is clearer than `Movie.where(rating: ['G', 'PG'])`
-3. **Composable** - Chain multiple scopes together
-4. **Lazy** - Queries aren't executed until needed
-
----
-
-## Summary & Key Files
-
-### Concept-to-File Mapping
-
-| Concept | Lecture Section | File(s) |
-|---------|-----------------|---------|
-| Validations | §5.1 | `app/models/movie.rb` |
-| Controller Filters | §5.1 | `app/controllers/reviews_controller.rb` |
-| Partials | §5.1 | `app/views/movies/_movie.html.erb`, `app/views/shared/_flash.html.erb` |
-| OmniAuth SSO | §5.2 | `config/initializers/omniauth.rb`, `app/controllers/sessions_controller.rb` |
-| Associations | §5.3, §5.4 | `app/models/*.rb` |
-| Through-Associations | §5.5 | `app/models/movie.rb`, `app/models/moviegoer.rb` |
-| Nested Routes | §5.6 | `config/routes.rb`, `app/controllers/reviews_controller.rb` |
-| Referential Integrity | §5.6 | `app/models/movie.rb` (`dependent: :destroy`) |
-| Scopes | §5.8 | `app/models/movie.rb` |
-
 ### Quick Reference Commands
 
 ```bash
@@ -912,24 +702,6 @@ cat db/schema.rb
 | **Pointcut** | Model lifecycle hooks | Before/after controller actions |
 | **Can redirect?** | No | Yes |
 | **Error info** | `model.errors` object | `flash[]`, `session[]` |
-
----
-
-## Exercises for Students
-
-### Exercise 1: Add a Custom Validation
-Add a validation to `Review` that prevents a user from giving themselves a 5-potato review (hint: use a custom validation method).
-
-### Exercise 2: Add a New Scope
-Add a scope `Movie.highly_rated` that returns movies with an average review of 4 or higher.
-
-### Exercise 3: Create a Moviegoer Profile Page
-1. Add a route: `GET /moviegoers/:id`
-2. Create a controller action to show a moviegoer's profile
-3. Display all movies they've reviewed using `has_many :through`
-
-### Exercise 4: Add a Second OAuth Provider
-Add Google OAuth as an alternative login option (hint: use the `omniauth-google-oauth2` gem).
 
 ---
 
