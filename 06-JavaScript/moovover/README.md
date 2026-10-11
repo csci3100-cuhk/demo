@@ -246,8 +246,6 @@ times3(5)   // → 15
 // Arrow functions
 [1, 2, 3].map(x => x * x)   // → [1, 4, 9]
 
-// Our module is accessible globally
-MoviePopup
 ```
 
 ---
