@@ -654,7 +654,7 @@ The "Quick View" button on the movies index page demonstrates the full AJAX cycl
 // Make an AJAX request manually
 $.ajax({
   type: 'GET',
-  url: '/movies/1.json',
+  url: '/movies/3.json',
   success: function(data) {
     console.log('Movie:', data.title);
     console.log('Rating:', data.rating);
@@ -663,7 +663,7 @@ $.ajax({
 });
 
 // Same thing with fetch()
-fetch('/movies/1.json')
+fetch('/movies/3.json')
   .then(r => r.json())
   .then(data => console.log(data));
 ```
