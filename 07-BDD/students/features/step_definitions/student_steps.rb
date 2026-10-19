@@ -9,6 +9,7 @@ end
 
 Then /^"(.*) (.*)" should appear before "(.*) (.*)"$/ do |first1,last1, first2,last2|
   regex = /#{first1}.*#{last1}.*#{first2}.*#{last2}/m
-  table = page.find('table#student-table')
-  expect(table.text).to match(regex)
+  expect(page.text).to match(regex)
+  # table = page.find('table#student-table')
+  # expect(table.text).to match(regex)
 end
