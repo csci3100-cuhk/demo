@@ -55,6 +55,8 @@ class MoviesController < ApplicationController
   # ============================================================
   # EXERCISE 3: Uncomment the body to make controller specs GREEN
   # Run:  bundle exec rspec spec/controllers/movies_controller_spec.rb
+  # Then run: bundle exec cucumber features/search_tmdb.feature
+  # RSpec GREEN is not enough: Exercise 4 connects the user-facing form.
   # ============================================================
   def search_tmdb
     # search_terms = params[:search_terms]

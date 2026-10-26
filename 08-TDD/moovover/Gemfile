@@ -71,6 +71,10 @@ group :development do
 end
 
 group :test do
+  # Outer BDD loop: exercise user scenarios through the real Rails pages.
+  gem "cucumber-rails", "~> 4.0", require: false
+  gem "database_cleaner-active_record", "~> 2.2"
+
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"

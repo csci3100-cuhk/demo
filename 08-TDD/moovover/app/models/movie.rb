@@ -60,8 +60,9 @@ class Movie < ApplicationRecord
   # end
 
   # ============================================================
-  # EXERCISE 2: Uncomment find_in_tmdb to add the "seam" (Slide 28)
-  # This class method is the seam that controller specs stub.
+  # EXERCISE 2: Inspect the existing "seam" (Slide 28).
+  # Controller specs and Cucumber stub this external-service boundary.
+  # Keep it defined: verifying doubles require the method to exist.
   # Run:  bundle exec rspec spec/controllers/movies_controller_spec.rb
   # ============================================================
   def self.find_in_tmdb(_search_terms)

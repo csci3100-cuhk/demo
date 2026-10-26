@@ -1,15 +1,16 @@
 Rails.application.routes.draw do
   root :to => redirect('/movies')
 
+  # Keep this before resources: /movies/:id would otherwise treat
+  # "search_tmdb" as a movie ID. Cucumber exercises real URL routing.
+  get "/movies/search_tmdb", to: "movies#search_tmdb", as: "search_tmdb_movies"
+
   # Nested RESTful Routes (ESaaS §5.6)
   # Access reviews by going "through" a movie
   # bin/rails routes | grep review to see generated routes
   resources :movies do
     resources :reviews
   end
-
-  # Lecture 8 TDD example: TMDb search route for MoviesController#search_tmdb
-  get "/movies/search_tmdb", to: "movies#search_tmdb", as: "search_tmdb_movies"
 
   # Alternative: explicit routes (commented for reference)
   # get '/movies'          => 'movies#index', as: 'movies'

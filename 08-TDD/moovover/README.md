@@ -1,14 +1,16 @@
-# Handout: TDD and RSpec (ESaaS §8.1–8.8)
+# Handout: BDD with Cucumber and TDD with RSpec (ESaaS §8.1–8.8)
 
 This demo accompanies **Lecture 8 — TDD and RSpec**.
 It uses the MoovOver Rails app to walk through the exact examples from the
 lecture slides: writing controller specs for a TMDb search feature using
-**Red–Green–Refactor**, **seams**, **doubles**, and **stubs**.
+**Red–Green–Refactor**, **seams**, **doubles**, and **stubs**, inside the
+Cucumber acceptance-test loop shown on **Slide 6**.
 
 Work through this handout top to bottom. By the end you should be able to
 explain how TDD drives the implementation of a new controller action, how
 doubles and seams isolate the code under test, and how expectations verify
-behavior.
+behavior. You will also see why passing controller specs does not yet mean
+that a moviegoer can use the feature through the UI.
 
 ---
 
@@ -17,34 +19,51 @@ behavior.
 ```bash
 cd moovover
 bundle install
-bin/rails db:migrate RAILS_ENV=test
-bundle exec rspec           # run all specs
+bin/rails db:create db:schema:load RAILS_ENV=test
+bundle exec cucumber features/search_tmdb.feature  # outer loop: RED first
+bundle exec rspec                                  # inner loop: RED too
 ```
 
-**Some specs are RED on purpose!** Key implementation code has been
-commented out. Your job is to find and uncomment the right code to turn
-each exercise from RED to GREEN — just like the TDD cycle in the lecture.
+The database command rebuilds the **test database** from the supplied schema.
+Use it for initial setup, not between exercises. It does not load the older
+demo's seed data; each test supplies its own data.
 
-There are **3 exercises** spread across 2 files. Look for comments that
-start with `EXERCISE`:
+**Some specs and both Cucumber scenarios are RED on purpose!** This is the
+student starting point. Tests are supplied so you can replay test-first
+development: observe a meaningful failure, add the smallest implementation,
+then rerun. In a new project, you would write these tests before the code.
 
-| Exercise | File | What to uncomment | Specs that turn GREEN |
-|----------|------|-------------------|----------------------|
-| 1 | `app/models/movie.rb` | `name_with_rating` method | model spec, fixture/factory specs |
-| 2 | `app/models/movie.rb` | `find_in_tmdb` class method (the seam) | — (needed by Exercise 3) |
-| 3 | `app/controllers/movies_controller.rb` | `search_tmdb` action body | all 3 controller specs |
+There are **4 exercises**. Look for comments starting with `EXERCISE`:
 
-Work through them in order (1 → 2 → 3). After each exercise, run
-`bundle exec rspec` to see specs go from RED to GREEN.
+| Exercise | File | What to do | Checkpoint |
+|----------|------|------------|------------|
+| 1 | `app/models/movie.rb` | Uncomment `name_with_rating` (§8 warm-up) | model and fixture/factory specs GREEN |
+| 2 | `app/models/movie.rb` | Inspect the already-defined `find_in_tmdb` seam (§3.4) | Understand where tests replace TMDb; no edit needed |
+| 3 | `app/controllers/movies_controller.rb` | Uncomment `search_tmdb` action body (§4.4) | all 15 RSpec examples GREEN; Cucumber still RED |
+| 4 | `app/views/movies/index.html.erb` | Add the search form (§4.5) | both Cucumber scenarios GREEN |
 
-When all exercises are done you should see:
+Follow the handout through §4.5 for the main BDD/TDD walkthrough. Exercise 1
+is an independent model warm-up: do §8 before the full-suite checkpoint in
+§4.4. The TMDb controller specs do not depend on `name_with_rating`.
 
-```
-...............
+After Exercise 3 (and the warm-up), `bundle exec rspec` should report:
 
-Finished in 0.12 seconds
+```text
 15 examples, 0 failures
 ```
+
+**Do not stop there.** Run Cucumber again: it still fails because the movies
+page has no search form. After Exercise 4, run both commands:
+
+```bash
+bundle exec rspec
+bundle exec cucumber features/search_tmdb.feature
+```
+
+Expected final results: **15 examples, 0 failures** and **2 scenarios,
+10 steps, all passed**. No TMDb key, network call, running Rails server, or
+browser installation is needed. Cucumber uses Capybara's `rack_test` driver
+to submit real HTML forms to Rails in-process; it does not execute JavaScript.
 
 ---
 
@@ -55,6 +74,10 @@ lecture highlighted. Everything else is standard Rails scaffolding.
 
 ```
 moovover/
+├── features/                                  # ← Cucumber outer BDD loop (§2.2, §4.5)
+│   ├── search_tmdb.feature                    #   matching results / no matches
+│   ├── step_definitions/tmdb_steps.rb         #   interact with real pages via Capybara
+│   └── support/env.rb                        #   Rails, scenario-scoped stubs, DB cleanup
 ├── spec/                                      # ← RSpec lives here
 │   ├── controllers/
 │   │   └── movies_controller_spec.rb          #   TMDb search controller spec (§4)
@@ -76,9 +99,10 @@ moovover/
 │   ├── models/movie.rb                        # Movie model with find_in_tmdb seam
 │   ├── controllers/movies_controller.rb       # search_tmdb action
 │   └── views/movies/
+│       ├── index.html.erb                     # Exercise 4: add the search form
 │       └── search_tmdb.html.erb               # Search Results view
 ├── config/routes.rb                           # includes search_tmdb route
-└── Gemfile                                    # rspec-rails + factory_bot_rails
+└── Gemfile                                    # RSpec + FactoryBot + Cucumber Rails
 ```
 
 ---
@@ -99,14 +123,86 @@ The controller needs to do three things ("the code you wish you had"):
 3. **Make the results available** to that view.
 
 We will test all three behaviors *before* we write the controller code —
-that is TDD.
+that is the inner TDD loop. This tutorial implements the **search slice** of
+the story: finding and displaying matches, not importing them into our database.
+
+### 2.1 BDD and TDD: two nested loops (Slide 6)
+
+**BDD (behavior-driven development)** starts with examples of behavior that
+users and developers can discuss. Here, Cucumber makes those examples
+executable as `Given / When / Then` scenarios. **TDD (test-driven development)**
+uses small failing tests to drive the implementation, followed by refactoring.
+Here, RSpec tests the controller responsibilities needed by the user scenario.
+These practices complement each other; BDD is not merely a final test phase.
+Neither practice is restricted to one tool: RSpec can also express behavior
+and test integration, as the existing request specs demonstrate.
+
+The sequence on Slide 6 is:
+
+```text
+Outer BDD loop:  Cucumber RED ────────────────────────────→ Cucumber GREEN
+                     │                                          ↑
+                     └→ RSpec RED → implement → RSpec GREEN ──────┘
+                            ↑                      │
+                            └── refactor / repeat ─┘
+```
+
+Write/run the acceptance scenario **first**, but make the supporting RSpec
+examples pass **before** expecting the whole user scenario to pass. If
+Cucumber is still red, use its failure to identify the missing behavior,
+add focused specs where useful, and continue implementation. After refactoring,
+rerun both layers.
+
+| Layer in this tutorial | Question answered | What really runs? |
+|------------------------|-------------------|-------------------|
+| Cucumber + Capybara | Can a moviegoer submit a title and see matches? | HTML form → URL routing → controller → rendered results |
+| RSpec controller specs | Does the action call the model, choose the template, and supply results? | Controller action with the TMDb seam stubbed; view rendering disabled by default |
+
+### 2.2 Start with a failing user scenario
+
+**File:** `features/search_tmdb.feature`
+
+```gherkin
+Scenario: Find a matching movie
+  Given TMDb has a movie titled "Hardware" for the search "hardware"
+  And I am on the movies page
+  When I search TMDb for "hardware"
+  Then I should see the TMDb search results
+  And the results should include "Hardware"
+```
+
+Run it before implementing anything:
+
+```bash
+bundle exec cucumber features/search_tmdb.feature
+```
+
+Both scenarios fail at `When I search TMDb ...` with
+`Unable to find field "Search Terms"`. That is the expected **outer RED**:
+the user cannot search yet. The step definitions already exist, so this is
+a missing application behavior, not an undefined Cucumber step.
+
+The second scenario specifies the no-matches message. The `Given` steps
+stub **only `Movie.find_in_tmdb`**, returning an unsaved `Movie` or an empty
+array. The stub expects the search text as its argument, so a form submitting
+the wrong parameter will fail too. We do not stub the controller, route, or
+HTML. Both suites therefore verify our app against a controlled TMDb response;
+they do **not** prove the real API integration works. The production TMDb
+implementation is outside this exercise and still raises if called unstubbed.
+
+The support file resets stubs and rolls back database changes after each
+scenario. See the official [Cucumber Rails setup](https://github.com/cucumber/cucumber-rails)
+and [stubbing guidance](https://cucumber.io/docs/cucumber/mocking-and-stubbing-with-cucumber/)
+for the supporting configuration.
+
+Now leave that acceptance scenario red and enter the smaller RSpec loop.
 
 ---
 
 ## 3. TDD Setup (Slide 27)
 
-The slides say: before writing any specs, set up the plumbing so the test
-can at least *run* (even if it fails):
+The plumbing below is already present so the controller specs can run
+and fail on missing behavior. Exercise 2 is to inspect this setup.
 
 ### 3.1 Add a route
 
@@ -116,10 +212,15 @@ can at least *run* (even if it fails):
 get "/movies/search_tmdb", to: "movies#search_tmdb", as: "search_tmdb_movies"
 ```
 
-### 3.2 Create an empty view
+Place this **before `resources :movies`**. Otherwise `/movies/:id` matches
+`search_tmdb` as an ID. A controller spec invoking `get :search_tmdb` does not
+prove the browser URL reaches that action; Cucumber follows the real route.
 
-**File:** `app/views/movies/search_tmdb.html.erb` — exists so the
-controller can render *something*.
+### 3.2 Provide the results view
+
+**File:** `app/views/movies/search_tmdb.html.erb` — already displays movie
+titles or `No results to display.`. The missing UI for this exercise is the
+search form on the movies index page.
 
 ### 3.3 Create a placeholder controller action
 
@@ -127,17 +228,16 @@ controller can render *something*.
 
 ```ruby
 def search_tmdb
-  search_terms = params[:search_terms]
-  @movies = Movie.find_in_tmdb(search_terms)
-  render :search_tmdb
+  # Exercise 3: leave empty until you have observed the RSpec failures.
 end
 ```
 
 ### 3.4 Add the model seam
 
-Calling TMDb is the model's responsibility, but the real method does not
-exist yet. We add a **seam** — a place we can intercept behavior without
-changing app code:
+Calling TMDb is the model's responsibility. The placeholder method is already
+defined, but the real API integration is not implemented. This method boundary
+is our **seam** — a place we can intercept behavior without changing the
+controller code:
 
 **File:** `app/models/movie.rb`
 
@@ -147,8 +247,10 @@ def self.find_in_tmdb(_search_terms)
 end
 ```
 
-In the specs we will **stub** this method so it never raises, and never
-calls the real TMDb API.
+In both RSpec and Cucumber we **stub** this method so it never raises, and
+never calls the real TMDb API. Keep the method defined: verifying partial
+doubles reject stubs for nonexistent methods. The seam is the replacement
+point; the stub is the replacement behavior installed by a test.
 
 ---
 
@@ -188,7 +290,7 @@ RSpec.describe MoviesController, type: :controller do
 end
 ```
 
-### Walking through each spec
+### 4.1 Walking through each spec
 
 #### Spec 1 — "calls the model method" (Slide 30)
 
@@ -245,7 +347,7 @@ expect(assigns[:movies]).to be_a_kind_of(Enumerable)
 - We verify that the controller set `@movies` to exactly the fake results.
   This is how the view will access the data.
 
-### Concepts to notice
+### 4.2 Concepts to notice
 
 | Concept | Where you see it |
 |---------|-----------------|
@@ -257,6 +359,90 @@ expect(assigns[:movies]).to be_a_kind_of(Enumerable)
 | **`assigns[:movies]`** (Slide 25) | Reads the `@movies` instance variable set by the controller |
 | **`be_a_kind_of`** (Slide 25) | Checks the results are Enumerable (iterable by the view) |
 | **Arrange–Act–Assert** | Each spec: set up stub → call controller → check result |
+
+### 4.3 Inner RED — run the controller specs
+
+```bash
+bundle exec rspec spec/controllers/movies_controller_spec.rb
+```
+
+With the empty action, expect **3 examples, 2 failures**: the model is not
+called and `@movies` is not assigned. The template-selection example already
+passes because Rails implicitly renders the template named after the action.
+That single green example does not mean the controller is complete.
+
+### 4.4 Inner GREEN — implement the controller (Exercise 3)
+
+Uncomment the supplied body in `app/controllers/movies_controller.rb`:
+
+```ruby
+def search_tmdb
+  search_terms = params[:search_terms]
+  @movies = Movie.find_in_tmdb(search_terms)
+  render :search_tmdb
+end
+```
+
+Run the controller specs again: **3 examples, 0 failures**. The explicit
+`render` makes the intent clear for this lesson; Rails could also render
+this same-named template implicitly.
+
+Complete the independent `name_with_rating` warm-up in §8 (Exercise 1), then:
+
+```bash
+bundle exec rspec
+```
+
+You should now see **15 examples, 0 failures**. Refactor if needed and keep
+these specs green. This completes the inner loop, not the user story.
+
+### 4.5 Return to the outer loop — connect the UI (Exercise 4)
+
+```bash
+bundle exec cucumber features/search_tmdb.feature
+```
+
+It still fails with `Unable to find field "Search Terms"`! The controller
+specs invoke the action directly and normally do not render the actual view.
+They cannot tell us whether a user can find a form, submit it to the right
+URL, and see the returned titles.
+
+At the `EXERCISE 4` marker in `app/views/movies/index.html.erb`, add:
+
+```erb
+<%= form_with url: search_tmdb_movies_path, method: :get, local: true do |form| %>
+  <%= form.label :search_terms, "Search Terms" %>
+  <%= form.text_field :search_terms %>
+  <%= form.submit "Search TMDb" %>
+<% end %>
+```
+
+The label makes the field accessible and lets Capybara find it. The GET form
+submits `search_terms` to the same action tested by RSpec. The prebuilt results
+view renders the assigned movies or the no-matches message.
+
+```bash
+bundle exec rspec
+bundle exec cucumber features/search_tmdb.feature
+```
+
+Now expect **15 examples, 0 failures** and **2 scenarios, 10 steps, all
+passed**. The outer loop is GREEN: the search slice works through the UI
+against our stubbed service. Both layers must remain green after refactoring.
+
+| Checkpoint | RSpec controller specs | Cucumber | Meaning |
+|------------|------------------------|----------|---------|
+| Starting code | 2 failures out of 3 | 2 failed scenarios | Controller implementation and search form are missing |
+| After Exercise 3 | 3 pass | 2 failed scenarios | Local controller behavior works; the user still cannot search |
+| After Exercise 4 | 3 pass | 2 passed scenarios | Form, route, controller, and results view work together |
+
+**Discussion:** temporarily change the form field name to `query` (change
+both the label's attribute and the text field), then run both suites.
+RSpec stays green; Cucumber fails because the controller reads
+`params[:search_terms]` and the stub does not accept `nil`. Restore the name
+and rerun. This demonstrates a wiring error that isolated controller specs
+cannot catch. Likewise, removing the results list can leave the controller
+specs green while the Cucumber result assertion fails.
 
 ---
 
@@ -512,6 +698,7 @@ end
 | **Unit** (model specs) | `spec/models/movie_spec.rb` | Fastest | Few/none |
 | **Functional** (controller specs) | `spec/controllers/movies_controller_spec.rb` | Fast | Stubs & doubles |
 | **Integration** (request specs) | `spec/requests/movies_spec.rb` | Slower | None |
+| **Acceptance** (Cucumber scenarios) | `features/search_tmdb.feature` | Exercises more of the app | Only the external TMDb boundary is stubbed |
 
 From the slides:
 
@@ -524,6 +711,9 @@ From the slides:
 
 | Concept | Where you see it in this demo |
 |---------|-------------------------------|
+| **BDD + TDD (Slide 6)** | Cucumber RED → RSpec RED → RSpec GREEN → Cucumber GREEN (§2.1, §4.3–4.5) |
+| **RSpec GREEN ≠ story done** | After Exercise 3, controller specs pass but the user still has no search form |
+| **Acceptance criteria** | Cucumber checks matching titles and the no-matches message through the actual UI |
 | **Red–Green–Refactor** | `name_with_rating`: spec fails → add method → spec passes |
 | **The code you wish you had** | `Movie.find_in_tmdb` — tested before implemented |
 | **Seam** | `Movie.find_in_tmdb` is the place we intercept without changing the controller |
