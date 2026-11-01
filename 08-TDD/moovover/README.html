@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.26">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>readme</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="README_files/libs/clipboard/clipboard.min.js"></script>
+<script src="README_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="README_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="README_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="README_files/libs/quarto-html/popper.min.js"></script>
+<script src="README_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="README_files/libs/quarto-html/anchor.min.js"></script>
+<link href="README_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="README_files/libs/quarto-html/quarto-syntax-highlighting-587c61ba64f3a5504c4d52d930310e48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="README_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="README_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="README_files/libs/bootstrap/bootstrap-d6a003b94517c951b2d65075d42fb01b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+
+
+
+<section id="handout-bdd-with-cucumber-and-tdd-with-rspec-esaas-8.18.8" class="level1">
+<h1>Handout: BDD with Cucumber and TDD with RSpec (ESaaS §8.1–8.8)</h1>
+<p>This demo accompanies <strong>Lecture 8 — TDD and RSpec</strong>. It uses the MoovOver Rails app to walk through the exact examples from the lecture slides: writing controller specs for a TMDb search feature using <strong>Red–Green–Refactor</strong>, <strong>seams</strong>, <strong>doubles</strong>, and <strong>stubs</strong>, inside the Cucumber acceptance-test loop shown on <strong>Slide 6</strong>.</p>
+<p>Work through this handout top to bottom. By the end you should be able to explain how TDD drives the implementation of a new controller action, how doubles and seams isolate the code under test, and how expectations verify behavior. You will also see why passing controller specs does not yet mean that a moviegoer can use the feature through the UI.</p>
+<hr>
+<section id="getting-started" class="level2">
+<h2 class="anchored" data-anchor-id="getting-started">Getting Started</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> moovover</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bundle</span> install</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bin/rails</span> db:create db:schema:load RAILS_ENV=test</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">bundle</span> exec cucumber features/search_tmdb.feature  <span class="co"># outer loop: RED first</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">bundle</span> exec rspec                                  <span class="co"># inner loop: RED too</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The database command rebuilds the <strong>test database</strong> from the supplied schema. Use it for initial setup, not between exercises. It does not load the older demo’s seed data; each test supplies its own data.</p>
+<p><strong>Some specs and both Cucumber scenarios are RED on purpose!</strong> This is the student starting point. Tests are supplied so you can replay test-first development: observe a meaningful failure, add the smallest implementation, then rerun. In a new project, you would write these tests before the code.</p>
+<p>There are <strong>4 exercises</strong>. Look for comments starting with <code>EXERCISE</code>:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 15%">
+<col style="width: 30%">
+<col style="width: 30%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Exercise</th>
+<th>File</th>
+<th>What to do</th>
+<th>Checkpoint</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td><code>app/models/movie.rb</code></td>
+<td>Uncomment <code>name_with_rating</code> (§8 warm-up)</td>
+<td>model and fixture/factory specs GREEN</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td><code>app/models/movie.rb</code></td>
+<td>Inspect the already-defined <code>find_in_tmdb</code> seam (§3.4)</td>
+<td>Understand where tests replace TMDb; no edit needed</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td><code>app/controllers/movies_controller.rb</code></td>
+<td>Uncomment <code>search_tmdb</code> action body (§4.4)</td>
+<td>all 15 RSpec examples GREEN; Cucumber still RED</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td><code>app/views/movies/index.html.erb</code></td>
+<td>Add the search form (§4.5)</td>
+<td>both Cucumber scenarios GREEN</td>
+</tr>
+</tbody>
+</table>
+<p>Follow the handout through §4.5 for the main BDD/TDD walkthrough. Exercise 1 is an independent model warm-up: do §8 before the full-suite checkpoint in §4.4. The TMDb controller specs do not depend on <code>name_with_rating</code>.</p>
+<p>After Exercise 3 (and the warm-up), <code>bundle exec rspec</code> should report:</p>
+<pre class="text"><code>15 examples, 0 failures</code></pre>
+<p><strong>Do not stop there.</strong> Run Cucumber again: it still fails because the movies page has no search form. After Exercise 4, run both commands:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bundle</span> exec rspec</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bundle</span> exec cucumber features/search_tmdb.feature</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Expected final results: <strong>15 examples, 0 failures</strong> and <strong>2 scenarios, 10 steps, all passed</strong>. No TMDb key, network call, running Rails server, or browser installation is needed. Cucumber uses Capybara’s <code>rack_test</code> driver to submit real HTML forms to Rails in-process; it does not execute JavaScript.</p>
+<hr>
+</section>
+<section id="project-structure-at-a-glance" class="level2">
+<h2 class="anchored" data-anchor-id="project-structure-at-a-glance">1. Project Structure at a Glance</h2>
+<p>Below is the directory layout with only the files that matter for this lecture highlighted. Everything else is standard Rails scaffolding.</p>
+<pre><code>moovover/
+├── features/                                  # ← Cucumber outer BDD loop (§2.2, §4.5)
+│   ├── search_tmdb.feature                    #   matching results / no matches
+│   ├── step_definitions/tmdb_steps.rb         #   interact with real pages via Capybara
+│   └── support/env.rb                        #   Rails, scenario-scoped stubs, DB cleanup
+├── spec/                                      # ← RSpec lives here
+│   ├── controllers/
+│   │   └── movies_controller_spec.rb          #   TMDb search controller spec (§4)
+│   ├── models/
+│   │   └── movie_spec.rb                      #   model specs: name_with_rating, validations (§8–9)
+│   ├── requests/
+│   │   └── movies_spec.rb                     #   request-level spec: HTML vs JSON (§10)
+│   ├── examples/
+│   │   ├── doubles_spec.rb                    #   standalone doubles example (§6)
+│   │   ├── fixtures_spec.rb                   #   fixtures demo (§7)
+│   │   └── factories_spec.rb                  #   FactoryBot demo (§7)
+│   ├── fixtures/
+│   │   └── movies.yml                         #   fixture data from Slides 50–51
+│   ├── factories/
+│   │   └── movie.rb                           #   factory definition from Slide 52
+│   ├── rails_helper.rb
+│   └── spec_helper.rb
+├── app/
+│   ├── models/movie.rb                        # Movie model with find_in_tmdb seam
+│   ├── controllers/movies_controller.rb       # search_tmdb action
+│   └── views/movies/
+│       ├── index.html.erb                     # Exercise 4: add the search form
+│       └── search_tmdb.html.erb               # Search Results view
+├── config/routes.rb                           # includes search_tmdb route
+└── Gemfile                                    # RSpec + FactoryBot + Cucumber Rails</code></pre>
+<hr>
+</section>
+<section id="the-feature-look-up-movie-in-tmdb-esaas-8.3-slides-2023" class="level2">
+<h2 class="anchored" data-anchor-id="the-feature-look-up-movie-in-tmdb-esaas-8.3-slides-2023">2. The Feature: Look Up Movie in TMDb (ESaaS §8.3, Slides 20–23)</h2>
+<p>The lecture introduces a new user story:</p>
+<blockquote class="blockquote">
+<p><strong>Feature:</strong> look up movie in TMDb<br>
+<strong>As</strong> a lazy moviegoer<br>
+<strong>So that</strong> I can add movies without filling in info manually<br>
+<strong>I want</strong> to look up a movie by title in TMDb</p>
+</blockquote>
+<p>The controller needs to do three things (“the code you wish you had”):</p>
+<ol type="1">
+<li><strong>Call a model method</strong> that searches TMDb for the specified movie.</li>
+<li><strong>Render</strong> a “Search Results” view if matches are found.</li>
+<li><strong>Make the results available</strong> to that view.</li>
+</ol>
+<p>We will test all three behaviors <em>before</em> we write the controller code — that is the inner TDD loop. This tutorial implements the <strong>search slice</strong> of the story: finding and displaying matches, not importing them into our database.</p>
+<section id="bdd-and-tdd-two-nested-loops-slide-6" class="level3">
+<h3 class="anchored" data-anchor-id="bdd-and-tdd-two-nested-loops-slide-6">2.1 BDD and TDD: two nested loops (Slide 6)</h3>
+<p><strong>BDD (behavior-driven development)</strong> starts with examples of behavior that users and developers can discuss. Here, Cucumber makes those examples executable as <code>Given / When / Then</code> scenarios. <strong>TDD (test-driven development)</strong> uses small failing tests to drive the implementation, followed by refactoring. Here, RSpec tests the controller responsibilities needed by the user scenario. These practices complement each other; BDD is not merely a final test phase. Neither practice is restricted to one tool: RSpec can also express behavior and test integration, as the existing request specs demonstrate.</p>
+<p>The sequence on Slide 6 is:</p>
+<pre class="text"><code>Outer BDD loop:  Cucumber RED ────────────────────────────→ Cucumber GREEN
+                     │                                          ↑
+                     └→ RSpec RED → implement → RSpec GREEN ──────┘
+                            ↑                      │
+                            └── refactor / repeat ─┘</code></pre>
+<p>Write/run the acceptance scenario <strong>first</strong>, but make the supporting RSpec examples pass <strong>before</strong> expecting the whole user scenario to pass. If Cucumber is still red, use its failure to identify the missing behavior, add focused specs where useful, and continue implementation. After refactoring, rerun both layers.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 38%">
+<col style="width: 30%">
+<col style="width: 30%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Layer in this tutorial</th>
+<th>Question answered</th>
+<th>What really runs?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Cucumber + Capybara</td>
+<td>Can a moviegoer submit a title and see matches?</td>
+<td>HTML form → URL routing → controller → rendered results</td>
+</tr>
+<tr class="even">
+<td>RSpec controller specs</td>
+<td>Does the action call the model, choose the template, and supply results?</td>
+<td>Controller action with the TMDb seam stubbed; view rendering disabled by default</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="start-with-a-failing-user-scenario" class="level3">
+<h3 class="anchored" data-anchor-id="start-with-a-failing-user-scenario">2.2 Start with a failing user scenario</h3>
+<p><strong>File:</strong> <code>features/search_tmdb.feature</code></p>
+<pre class="gherkin"><code>Scenario: Find a matching movie
+  Given TMDb has a movie titled "Hardware" for the search "hardware"
+  And I am on the movies page
+  When I search TMDb for "hardware"
+  Then I should see the TMDb search results
+  And the results should include "Hardware"</code></pre>
+<p>Run it before implementing anything:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bundle</span> exec cucumber features/search_tmdb.feature</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Both scenarios fail at <code>When I search TMDb ...</code> with <code>Unable to find field "Search Terms"</code>. That is the expected <strong>outer RED</strong>: the user cannot search yet. The step definitions already exist, so this is a missing application behavior, not an undefined Cucumber step.</p>
+<p>The second scenario specifies the no-matches message. The <code>Given</code> steps stub <strong>only <code>Movie.find_in_tmdb</code></strong>, returning an unsaved <code>Movie</code> or an empty array. The stub expects the search text as its argument, so a form submitting the wrong parameter will fail too. We do not stub the controller, route, or HTML. Both suites therefore verify our app against a controlled TMDb response; they do <strong>not</strong> prove the real API integration works. The production TMDb implementation is outside this exercise and still raises if called unstubbed.</p>
+<p>The support file resets stubs and rolls back database changes after each scenario. See the official <a href="https://github.com/cucumber/cucumber-rails">Cucumber Rails setup</a> and <a href="https://cucumber.io/docs/cucumber/mocking-and-stubbing-with-cucumber/">stubbing guidance</a> for the supporting configuration.</p>
+<p>Now leave that acceptance scenario red and enter the smaller RSpec loop.</p>
+<hr>
+</section>
+</section>
+<section id="tdd-setup-slide-27" class="level2">
+<h2 class="anchored" data-anchor-id="tdd-setup-slide-27">3. TDD Setup (Slide 27)</h2>
+<p>The plumbing below is already present so the controller specs can run and fail on missing behavior. Exercise 2 is to inspect this setup.</p>
+<section id="add-a-route" class="level3">
+<h3 class="anchored" data-anchor-id="add-a-route">3.1 Add a route</h3>
+<p><strong>File:</strong> <code>config/routes.rb</code></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode ruby code-with-copy"><code class="sourceCode ruby"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>get <span class="st">"/movies/search_tmdb"</span>, <span class="wa">to:</span> <span class="st">"movies#search_tmdb"</span>, <span class="wa">as:</span> <span class="st">"search_tmdb_movies"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Place this <strong>before <code>resources :movies</code></strong>. Otherwise <code>/movies/:id</code> matches <code>search_tmdb</code> as an ID. A controller spec invoking <code>get :search_tmdb</code> does not prove the browser URL reaches that action; Cucumber follows the real route.</p>
+</section>
+<section id="provide-the-results-view" class="level3">
+<h3 class="anchored" data-anchor-id="provide-the-results-view">3.2 Provide the results view</h3>
+<p><strong>File:</strong> <code>app/views/movies/search_tmdb.html.erb</code> — already displays movie titles or <code>No results to display.</code>. The missing UI for this exercise is the search form on the movies index page.</p>
+</section>
+<section id="create-a-placeholder-controller-action" class="level3">
+<h3 class="anchored" data-anchor-id="create-a-placeholder-controller-action">3.3 Create a placeholder controller action</h3>
+<p><strong>File:</strong> <code>app/controllers/movies_controller.rb</code></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode ruby code-with-copy"><code class="sourceCode ruby"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="cf">def</span> search_tmdb</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Exercise 3: leave empty until you have observed the RSpec failures.</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="add-the-model-seam" class="level3">
+<h3 class="anchored" data-anchor-id="add-the-model-seam">3.4 Add the model seam</h3>
+<p>Calling TMDb is the model’s responsibility. The placeholder method is already defined, but the real API integration is not implemented. This method boundary is our <strong>seam</strong> — a place we can intercept behavior without changing the controller code:</p>
+<p><strong>File:</strong> <code>app/models/movie.rb</code></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode ruby code-with-copy"><code class="sourceCode ruby"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="cf">def</span> <span class="dv">self</span><span class="at">.find_in_tmdb</span>(_search_terms)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">raise</span> <span class="st">"TMDb search not implemented – this method is intended to be stubbed in tests"</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>In both RSpec and Cucumber we <strong>stub</strong> this method so it never raises, and never calls the real TMDb API. Keep the method defined: verifying partial doubles reject stubs for nonexistent methods. The seam is the replacement point; the stub is the replacement behavior installed by a test.</p>
+<hr>
+</section>
+</section>
+<section id="the-controller-spec-three-behaviors-slides-2533-39" class="level2">
+<h2 class="anchored" data-anchor-id="the-controller-spec-three-behaviors-slides-2533-39">4. The Controller Spec — Three Behaviors (Slides 25–33, 39)</h2>
+<p><strong>File:</strong> <code>spec/controllers/movies_controller_spec.rb</code></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode ruby code-with-copy"><code class="sourceCode ruby"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">require</span> <span class="vs">'rails_helper'</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="dt">RSpec</span><span class="at">.describe</span> <span class="dt">MoviesController</span>, <span class="wa">type:</span> <span class="wa">:controller</span> <span class="cf">do</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  describe <span class="vs">'searching TMDb'</span> <span class="cf">do</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    it <span class="vs">'calls the model method that performs TMDb search'</span> <span class="cf">do</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>      expect(<span class="dt">Movie</span>)<span class="at">.to</span> receive(<span class="wa">:find_in_tmdb</span>)<span class="at">.with</span>(<span class="vs">'hardware'</span>)</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>      get <span class="wa">:search_tmdb</span>, <span class="wa">params:</span> <span class="op">{</span> <span class="wa">search_terms:</span> <span class="vs">'hardware'</span> <span class="op">}</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>    it <span class="vs">'selects the Search Results template for rendering'</span> <span class="cf">do</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>      allow(<span class="dt">Movie</span>)<span class="at">.to</span> receive(<span class="wa">:find_in_tmdb</span>)</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>      get <span class="wa">:search_tmdb</span>, <span class="wa">params:</span> <span class="op">{</span> <span class="wa">search_terms:</span> <span class="vs">'hardware'</span> <span class="op">}</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>      expect(response)<span class="at">.to</span> render_template(<span class="vs">'search_tmdb'</span>)</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>    it <span class="vs">'makes the TMDb search results available to that template'</span> <span class="cf">do</span></span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>      fake_results <span class="op">=</span> <span class="kw">[</span>double(<span class="vs">'Movie'</span>), double(<span class="vs">'Movie'</span>)<span class="kw">]</span></span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>      allow(<span class="dt">Movie</span>)<span class="at">.to</span> receive(<span class="wa">:find_in_tmdb</span>)<span class="at">.and_return</span>(fake_results)</span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>      get <span class="wa">:search_tmdb</span>, <span class="wa">params:</span> <span class="op">{</span> <span class="wa">search_terms:</span> <span class="vs">'hardware'</span> <span class="op">}</span></span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>      expect(assigns<span class="kw">[</span><span class="wa">:movies</span><span class="kw">]</span>)<span class="at">.to</span> eq(fake_results)</span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>      expect(assigns<span class="kw">[</span><span class="wa">:movies</span><span class="kw">]</span>)<span class="at">.to</span> be_a_kind_of(<span class="dt">Enumerable</span>)</span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="walking-through-each-spec" class="level3">
+<h3 class="anchored" data-anchor-id="walking-through-each-spec">4.1 Walking through each spec</h3>
+<section id="spec-1-calls-the-model-method-slide-30" class="level4">
+<h4 class="anchored" data-anchor-id="spec-1-calls-the-model-method-slide-30">Spec 1 — “calls the model method” (Slide 30)</h4>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode ruby code-with-copy"><code class="sourceCode ruby"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>expect(<span class="dt">Movie</span>)<span class="at">.to</span> receive(<span class="wa">:find_in_tmdb</span>)<span class="at">.with</span>(<span class="vs">'hardware'</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>get <span class="wa">:search_tmdb</span>, <span class="wa">params:</span> <span class="op">{</span> <span class="wa">search_terms:</span> <span class="vs">'hardware'</span> <span class="op">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li><code>expect(Movie).to receive(:find_in_tmdb)</code> is a <strong>message expectation</strong> (mock). It tells RSpec: “this spec should <strong>fail</strong> unless the controller calls <code>Movie.find_in_tmdb</code> with the argument <code>'hardware'</code> before the spec finishes.”</li>
+<li><code>get :search_tmdb</code> simulates submitting the search form to the controller action.</li>
+<li>The expectation line comes <em>before</em> the <code>get</code> — RSpec sets up the expectation first, then checks it after the action runs.</li>
+</ul>
+</section>
+<section id="spec-2-selects-the-search-results-template-slides-25-33" class="level4">
+<h4 class="anchored" data-anchor-id="spec-2-selects-the-search-results-template-slides-25-33">Spec 2 — “selects the Search Results template” (Slides 25, 33)</h4>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode ruby code-with-copy"><code class="sourceCode ruby"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>allow(<span class="dt">Movie</span>)<span class="at">.to</span> receive(<span class="wa">:find_in_tmdb</span>)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>get <span class="wa">:search_tmdb</span>, <span class="wa">params:</span> <span class="op">{</span> <span class="wa">search_terms:</span> <span class="vs">'hardware'</span> <span class="op">}</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>expect(response)<span class="at">.to</span> render_template(<span class="vs">'search_tmdb'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li><code>allow</code> is a <strong>method stub</strong> — it intercepts the call to <code>find_in_tmdb</code> and returns <code>nil</code>, preventing the real (unimplemented) method from raising an error.</li>
+<li><code>render_template('search_tmdb')</code> (Slide 25) verifies the controller rendered the correct view template. This matcher comes from the <code>rails-controller-testing</code> gem.</li>
+<li>Note the difference: <code>expect(...).to receive</code> = “this <strong>must</strong> be called” (mock); <code>allow(...).to receive</code> = “if called, return this” (stub).</li>
+</ul>
+</section>
+<section id="spec-3-makes-results-available-to-the-template-slides-25-39" class="level4">
+<h4 class="anchored" data-anchor-id="spec-3-makes-results-available-to-the-template-slides-25-39">Spec 3 — “makes results available to the template” (Slides 25, 39)</h4>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode ruby code-with-copy"><code class="sourceCode ruby"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>fake_results <span class="op">=</span> <span class="kw">[</span>double(<span class="vs">'Movie'</span>), double(<span class="vs">'Movie'</span>)<span class="kw">]</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>allow(<span class="dt">Movie</span>)<span class="at">.to</span> receive(<span class="wa">:find_in_tmdb</span>)<span class="at">.and_return</span>(fake_results)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>get <span class="wa">:search_tmdb</span>, <span class="wa">params:</span> <span class="op">{</span> <span class="wa">search_terms:</span> <span class="vs">'hardware'</span> <span class="op">}</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>expect(assigns<span class="kw">[</span><span class="wa">:movies</span><span class="kw">]</span>)<span class="at">.to</span> eq(fake_results)</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>expect(assigns<span class="kw">[</span><span class="wa">:movies</span><span class="kw">]</span>)<span class="at">.to</span> be_a_kind_of(<span class="dt">Enumerable</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li><code>double('Movie')</code> creates a <strong>stunt double</strong> — a fake object that stands in for a real <code>Movie</code>. We don’t care about its attributes here; we just need something the view can iterate over.</li>
+<li><code>assigns[:movies]</code> (Slide 25) is a hash of all instance variables set by the controller — <code>assigns[:movies]</code> reads <code>@movies</code>. This comes from the <code>rails-controller-testing</code> gem.</li>
+<li><code>be_a_kind_of(Enumerable)</code> (Slide 25) checks that the results are iterable, which is all the view needs to loop over them.</li>
+<li><code>and_return(fake_results)</code> makes the stub return our fake list.</li>
+<li>We verify that the controller set <code>@movies</code> to exactly the fake results. This is how the view will access the data.</li>
+</ul>
+</section>
+</section>
+<section id="concepts-to-notice" class="level3">
+<h3 class="anchored" data-anchor-id="concepts-to-notice">4.2 Concepts to notice</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 34%">
+<col style="width: 65%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Concept</th>
+<th>Where you see it</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Seam</strong></td>
+<td><code>Movie.find_in_tmdb</code> — we intercept it without changing the controller</td>
+</tr>
+<tr class="even">
+<td><strong>Method stub</strong> (<code>allow</code>)</td>
+<td>Intercepts <code>find_in_tmdb</code> so it doesn’t hit TMDb</td>
+</tr>
+<tr class="odd">
+<td><strong>Message expectation</strong> (<code>expect...to receive</code>)</td>
+<td>Verifies the controller <em>actually calls</em> the model method</td>
+</tr>
+<tr class="even">
+<td><strong>Stunt double</strong> (<code>double</code>)</td>
+<td>Fake Movie objects returned by the stub</td>
+</tr>
+<tr class="odd">
+<td><strong><code>render_template</code></strong> (Slide 25)</td>
+<td>Checks which view template the controller rendered</td>
+</tr>
+<tr class="even">
+<td><strong><code>assigns[:movies]</code></strong> (Slide 25)</td>
+<td>Reads the <code>@movies</code> instance variable set by the controller</td>
+</tr>
+<tr class="odd">
+<td><strong><code>be_a_kind_of</code></strong> (Slide 25)</td>
+<td>Checks the results are Enumerable (iterable by the view)</td>
+</tr>
+<tr class="even">
+<td><strong>Arrange–Act–Assert</strong></td>
+<td>Each spec: set up stub → call controller → check result</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="inner-red-run-the-controller-specs" class="level3">
+<h3 class="anchored" data-anchor-id="inner-red-run-the-controller-specs">4.3 Inner RED — run the controller specs</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bundle</span> exec rspec spec/controllers/movies_controller_spec.rb</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>With the empty action, expect <strong>3 examples, 2 failures</strong>: the model is not called and <code>@movies</code> is not assigned. The template-selection example already passes because Rails implicitly renders the template named after the action. That single green example does not mean the controller is complete.</p>
+</section>
+<section id="inner-green-implement-the-controller-exercise-3" class="level3">
+<h3 class="anchored" data-anchor-id="inner-green-implement-the-controller-exercise-3">4.4 Inner GREEN — implement the controller (Exercise 3)</h3>
+<p>Uncomment the supplied body in <code>app/controllers/movies_controller.rb</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode ruby code-with-copy"><code class="sourceCode ruby"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="cf">def</span> search_tmdb</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  search_terms <span class="op">=</span> params<span class="kw">[</span><span class="wa">:search_terms</span><span class="kw">]</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="ot">@movies</span> <span class="op">=</span> <span class="dt">Movie</span><span class="at">.find_in_tmdb</span>(search_terms)</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>  render <span class="wa">:search_tmdb</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Run the controller specs again: <strong>3 examples, 0 failures</strong>. The explicit <code>render</code> makes the intent clear for this lesson; Rails could also render this same-named template implicitly.</p>
+<p>Complete the independent <code>name_with_rating</code> warm-up in §8 (Exercise 1), then:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bundle</span> exec rspec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>You should now see <strong>15 examples, 0 failures</strong>. Refactor if needed and keep these specs green. This completes the inner loop, not the user story.</p>
+</section>
+<section id="return-to-the-outer-loop-connect-the-ui-exercise-4" class="level3">
+<h3 class="anchored" data-anchor-id="return-to-the-outer-loop-connect-the-ui-exercise-4">4.5 Return to the outer loop — connect the UI (Exercise 4)</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bundle</span> exec cucumber features/search_tmdb.feature</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>It still fails with <code>Unable to find field "Search Terms"</code>! The controller specs invoke the action directly and normally do not render the actual view. They cannot tell us whether a user can find a form, submit it to the right URL, and see the returned titles.</p>
+<p>At the <code>EXERCISE 4</code> marker in <code>app/views/movies/index.html.erb</code>, add:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode erb code-with-copy"><code class="sourceCode rhtml"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;%=</span><span class="ex"> form_with url: search_tmdb_movies_path, method: </span><span class="wa">:get</span><span class="ex">, local: </span><span class="dv">true</span><span class="ex"> </span><span class="kw">do</span><span class="ex"> </span><span class="ch">|</span><span class="fu">form</span><span class="ch">|</span><span class="ex"> </span><span class="dt">%&gt;</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&lt;%=</span><span class="ex"> </span><span class="fu">form</span><span class="at">.label</span><span class="ex"> </span><span class="wa">:search_terms</span><span class="ex">, </span><span class="st">"Search Terms"</span><span class="ex"> </span><span class="dt">%&gt;</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&lt;%=</span><span class="ex"> </span><span class="fu">form</span><span class="at">.text_field</span><span class="ex"> </span><span class="wa">:search_terms</span><span class="ex"> </span><span class="dt">%&gt;</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&lt;%=</span><span class="ex"> </span><span class="fu">form</span><span class="at">.submit</span><span class="ex"> </span><span class="st">"Search TMDb"</span><span class="ex"> </span><span class="dt">%&gt;</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;%</span><span class="ex"> </span><span class="kw">end</span><span class="ex"> </span><span class="dt">%&gt;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The label makes the field accessible and lets Capybara find it. The GET form submits <code>search_terms</code> to the same action tested by RSpec. The prebuilt results view renders the assigned movies or the no-matches message.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bundle</span> exec rspec</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bundle</span> exec cucumber features/search_tmdb.feature</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Now expect <strong>15 examples, 0 failures</strong> and <strong>2 scenarios, 10 steps, all passed</strong>. The outer loop is GREEN: the search slice works through the UI against our stubbed service. Both layers must remain green after refactoring.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 21%">
+<col style="width: 43%">
+<col style="width: 18%">
+<col style="width: 16%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Checkpoint</th>
+<th>RSpec controller specs</th>
+<th>Cucumber</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Starting code</td>
+<td>2 failures out of 3</td>
+<td>2 failed scenarios</td>
+<td>Controller implementation and search form are missing</td>
+</tr>
+<tr class="even">
+<td>After Exercise 3</td>
+<td>3 pass</td>
+<td>2 failed scenarios</td>
+<td>Local controller behavior works; the user still cannot search</td>
+</tr>
+<tr class="odd">
+<td>After Exercise 4</td>
+<td>3 pass</td>
+<td>2 passed scenarios</td>
+<td>Form, route, controller, and results view work together</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Discussion:</strong> temporarily change the form field name to <code>query</code> (change both the label’s attribute and the text field), then run both suites. RSpec stays green; Cucumber fails because the controller reads <code>params[:search_terms]</code> and the stub does not accept <code>nil</code>. Restore the name and rerun. This demonstrates a wiring error that isolated controller specs cannot catch. Likewise, removing the results list can leave the controller specs green while the Cucumber result assertion fails.</p>
+<hr>
+</section>
+</section>
+<section id="great-expectations-rspec-matchers-slides-1718" class="level2">
+<h2 class="anchored" data-anchor-id="great-expectations-rspec-matchers-slides-1718">5. Great Expectations — RSpec Matchers (Slides 17–18)</h2>
+<p>The specs above use several RSpec matchers. Here is a quick reference from the slides:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode ruby code-with-copy"><code class="sourceCode ruby"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>expect(x)<span class="at">.to</span> eq(<span class="vs">'Ruby'</span>)             <span class="co"># equality</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>expect(x)<span class="at">.to</span> be_truthy              <span class="co"># truthy value</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>expect(x)<span class="at">.to</span> match(<span class="ss">/regex/</span>)         <span class="co"># regex match</span></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>expect(x)<span class="at">.to</span> have_key(<span class="vs">'key'</span>)        <span class="co"># hash key</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>expect(x)<span class="at">.to</span> be_empty               <span class="co"># empty collection</span></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>expect(x)<span class="at">.to</span> be_valid               <span class="co"># implicitly calls x.valid?</span></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>expect <span class="op">{</span> movie<span class="at">.save!</span> <span class="op">}</span><span class="at">.to</span> raise_error</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>expect <span class="op">{</span> review<span class="at">.destroy</span> <span class="op">}</span><span class="at">.to</span> change <span class="op">{</span> <span class="dt">Review</span><span class="at">.count</span> <span class="op">}</span><span class="at">.by</span>(<span class="op">-</span><span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<hr>
+</section>
+<section id="stunt-doubles-the-mock-trainwreck-pitfall-slides-38-56" class="level2">
+<h2 class="anchored" data-anchor-id="stunt-doubles-the-mock-trainwreck-pitfall-slides-38-56">6. Stunt Doubles &amp; the Mock Trainwreck Pitfall (Slides 38, 56)</h2>
+<p><strong>File:</strong> <code>spec/examples/doubles_spec.rb</code></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode ruby code-with-copy"><code class="sourceCode ruby"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="dt">RSpec</span><span class="at">.describe</span> <span class="vs">'Doubles and seams'</span> <span class="cf">do</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  it <span class="vs">'uses a stunt double for a Movie-like object'</span> <span class="cf">do</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>    award <span class="op">=</span> double(<span class="vs">'Award'</span>, <span class="wa">type:</span> <span class="vs">'Oscar'</span>)</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    director <span class="op">=</span> double(<span class="vs">'Director'</span>, <span class="wa">name:</span> <span class="vs">'JJ Abrams'</span>)</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>    movie <span class="op">=</span> double(<span class="vs">'Movie'</span>, <span class="wa">title:</span> <span class="vs">'Snowden'</span>, <span class="wa">award:</span> award, <span class="wa">director:</span> director)</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>    expect(movie<span class="at">.title</span>)<span class="at">.to</span> eq(<span class="vs">'Snowden'</span>)</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>    expect(movie<span class="at">.award.type</span>)<span class="at">.to</span> eq(<span class="vs">'Oscar'</span>)</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>    expect(movie<span class="at">.director.name</span>)<span class="at">.to</span> eq(<span class="vs">'JJ Abrams'</span>)</span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>From the slides:</p>
+<ul>
+<li><code>double('Movie')</code> creates a bare stand-in.</li>
+<li><code>double('Movie', title: 'Snowden')</code> adds canned responses.</li>
+<li><code>allow(m).to receive(:title).and_return('Snowden')</code> is the longer form.</li>
+<li><strong>Pitfall — mock trainwreck (slide 56):</strong> chaining many doubles (<code>movie.award.type</code>, <code>movie.director.name</code>) can make tests fragile and tightly coupled to the internal structure of your objects. Use doubles sparingly.</li>
+</ul>
+<hr>
+</section>
+<section id="fixtures-factories-slides-4953" class="level2">
+<h2 class="anchored" data-anchor-id="fixtures-factories-slides-4953">7. Fixtures &amp; Factories (Slides 49–53)</h2>
+<section id="when-you-need-the-real-thing-slide-49" class="level3">
+<h3 class="anchored" data-anchor-id="when-you-need-the-real-thing-slide-49">When you need the real thing (Slide 49)</h3>
+<p>Sometimes a double is not enough — you need a real ActiveRecord object. The slides describe two approaches. <strong>Both are included in this demo</strong> so you can run them yourself.</p>
+</section>
+<section id="approach-a-fixtures-static-yaml-data-slides-5051" class="level3">
+<h3 class="anchored" data-anchor-id="approach-a-fixtures-static-yaml-data-slides-5051">Approach A — Fixtures: static YAML data (Slides 50–51)</h3>
+<blockquote class="blockquote">
+<p>Fixtures are YAML files that Rails loads into the test database before each spec. Good for truly static data that never changes.</p>
+</blockquote>
+<p><strong>File:</strong> <code>spec/fixtures/movies.yml</code></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">milk_movie</span><span class="kw">:</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">id</span><span class="kw">:</span><span class="at"> </span><span class="dv">1</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">title</span><span class="kw">:</span><span class="at"> Milk</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">rating</span><span class="kw">:</span><span class="at"> R</span></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">release_date</span><span class="kw">:</span><span class="at"> 2008-11-26</span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a><span class="fu">food_inc_movie</span><span class="kw">:</span></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">id</span><span class="kw">:</span><span class="at"> </span><span class="dv">2</span></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">title</span><span class="kw">:</span><span class="at"> </span><span class="st">"Food, Inc."</span></span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">release_date</span><span class="kw">:</span><span class="at"> 2008-09-07</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>File:</strong> <code>spec/examples/fixtures_spec.rb</code> — run with <code>bundle exec rspec spec/examples/fixtures_spec.rb</code></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode ruby code-with-copy"><code class="sourceCode ruby"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="dt">RSpec</span><span class="at">.describe</span> <span class="st">"Fixtures demo"</span>, <span class="wa">type:</span> <span class="wa">:model</span> <span class="cf">do</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>  fixtures <span class="wa">:movies</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>  it <span class="st">"loads the milk_movie fixture by name"</span> <span class="cf">do</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>    movie <span class="op">=</span> movies(<span class="wa">:milk_movie</span>)</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>    expect(movie<span class="at">.title</span>)<span class="at">.to</span> eq(<span class="st">"Milk"</span>)</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>    expect(movie<span class="at">.rating</span>)<span class="at">.to</span> eq(<span class="st">"R"</span>)</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>  it <span class="st">"can use fixture data with model methods"</span> <span class="cf">do</span></span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>    movie <span class="op">=</span> movies(<span class="wa">:milk_movie</span>)</span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>    expect(movie<span class="at">.name_with_rating</span>)<span class="at">.to</span> eq(<span class="st">"Milk (R)"</span>)</span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="approach-b-factories-create-what-you-need-per-test-slides-5253" class="level3">
+<h3 class="anchored" data-anchor-id="approach-b-factories-create-what-you-need-per-test-slides-5253">Approach B — Factories: create what you need per-test (Slides 52–53)</h3>
+<blockquote class="blockquote">
+<p>Factories (via the <code>factory_bot_rails</code> gem) generate objects on the fly. <code>sequence</code> (Slide 53) ensures each call produces unique data — keeping tests <strong>Independent</strong> (the “I” in FIRST).</p>
+</blockquote>
+<p><strong>File:</strong> <code>spec/factories/movie.rb</code></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode ruby code-with-copy"><code class="sourceCode ruby"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="dt">FactoryBot</span><span class="at">.define</span> <span class="cf">do</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>  factory <span class="wa">:movie</span> <span class="cf">do</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>    sequence(<span class="wa">:title</span>) <span class="op">{</span> <span class="op">|</span>n<span class="op">|</span> <span class="st">"Film </span><span class="sc">#{</span>n<span class="sc">}</span><span class="st">"</span> <span class="op">}</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>    rating <span class="op">{</span> <span class="st">"PG"</span> <span class="op">}</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>    release_date <span class="op">{</span> <span class="dt">Date</span><span class="at">.new</span>(<span class="dv">2020</span>, <span class="dv">1</span>, <span class="dv">1</span>) <span class="op">}</span></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Every call to <code>build(:movie)</code> increments <code>n</code>, producing <code>"Film 1"</code>, <code>"Film 2"</code>, <code>"Film 3"</code>, etc. — no two tests share the same title.</p>
+<p><strong>File:</strong> <code>spec/examples/factories_spec.rb</code> — run with <code>bundle exec rspec spec/examples/factories_spec.rb</code></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode ruby code-with-copy"><code class="sourceCode ruby"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="dt">RSpec</span><span class="at">.describe</span> <span class="st">"Factories demo"</span>, <span class="wa">type:</span> <span class="wa">:model</span> <span class="cf">do</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>  it <span class="st">"generates a unique title each time via sequence (Slide 53)"</span> <span class="cf">do</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>    movie_a <span class="op">=</span> build(<span class="wa">:movie</span>)</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>    movie_b <span class="op">=</span> build(<span class="wa">:movie</span>)</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>    expect(movie_a<span class="at">.title</span>)<span class="at">.not_to</span> eq(movie_b<span class="at">.title</span>)</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>  it <span class="st">"overrides factory defaults (Slide 52: name_with_rating)"</span> <span class="cf">do</span></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>    movie <span class="op">=</span> build(<span class="wa">:movie</span>, <span class="wa">title:</span> <span class="st">"Milk"</span>)</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>    expect(movie<span class="at">.name_with_rating</span>)<span class="at">.to</span> eq(<span class="st">"Milk (PG)"</span>)</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>  it <span class="st">"creates a movie saved to the database"</span> <span class="cf">do</span></span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>    movie <span class="op">=</span> create(<span class="wa">:movie</span>, <span class="wa">title:</span> <span class="st">"Inception"</span>, <span class="wa">rating:</span> <span class="st">"PG-13"</span>)</span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>    expect(movie)<span class="at">.to</span> be_persisted</span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a>    expect(<span class="dt">Movie</span><span class="at">.find</span>(movie<span class="at">.id</span>)<span class="at">.title</span>)<span class="at">.to</span> eq(<span class="st">"Inception"</span>)</span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="build-vs-create" class="level3">
+<h3 class="anchored" data-anchor-id="build-vs-create"><code>build</code> vs <code>create</code></h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>What it does</th>
+<th>Hits DB?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>build(:movie)</code></td>
+<td><code>Movie.new(...)</code> with factory defaults</td>
+<td>No</td>
+</tr>
+<tr class="even">
+<td><code>create(:movie)</code></td>
+<td><code>Movie.create!(...)</code> with factory defaults</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<p>Use <code>build</code> when you only need an in-memory object (faster). Use <code>create</code> when the test needs the record to exist in the database.</p>
+</section>
+<section id="when-to-use-fixtures-vs-factories" class="level3">
+<h3 class="anchored" data-anchor-id="when-to-use-fixtures-vs-factories">When to use fixtures vs factories?</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 76%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Data</th>
+<th>Fixture or Factory?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>TMDb API key</td>
+<td>Fixture (static config that never changes)</td>
+</tr>
+<tr class="even">
+<td>Movie for a specific test</td>
+<td>Factory (create per-test with custom attributes)</td>
+</tr>
+<tr class="odd">
+<td>Admin superuser account</td>
+<td>Prefer Fixture (static, shared across tests), but Factory also OK</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+</section>
+<section id="redgreenrefactor-moviename_with_rating-slides-7-49-52" class="level2">
+<h2 class="anchored" data-anchor-id="redgreenrefactor-moviename_with_rating-slides-7-49-52">8. Red–Green–Refactor: <code>Movie#name_with_rating</code> (Slides 7, 49, 52)</h2>
+<p>This is a small standalone example showing the TDD cycle on a model method. The slides reference <code>name_with_rating</code> in the Fixtures &amp; Factories section.</p>
+<section id="red-write-the-spec-first" class="level3">
+<h3 class="anchored" data-anchor-id="red-write-the-spec-first">8.1 RED — write the spec first</h3>
+<p><strong>File:</strong> <code>spec/models/movie_spec.rb</code></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode ruby code-with-copy"><code class="sourceCode ruby"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>describe <span class="vs">'#name_with_rating'</span> <span class="cf">do</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>  it <span class="st">"returns 'Title (RATING)' for a movie"</span> <span class="cf">do</span></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>    movie <span class="op">=</span> <span class="dt">Movie</span><span class="at">.new</span>(<span class="wa">title:</span> <span class="vs">'Milk'</span>, <span class="wa">rating:</span> <span class="vs">'PG'</span>, <span class="wa">release_date:</span> <span class="dt">Date</span><span class="at">.new</span>(<span class="dv">2008</span>, <span class="dv">11</span>, <span class="dv">26</span>))</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>    expect(movie<span class="at">.name_with_rating</span>)<span class="at">.to</span> eq(<span class="vs">'Milk (PG)'</span>)</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Run it:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bundle</span> exec rspec spec/models/movie_spec.rb:4</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>It fails with <code>NoMethodError: undefined method 'name_with_rating'</code> — <strong>RED</strong>.</p>
+</section>
+<section id="green-simplest-code-to-pass" class="level3">
+<h3 class="anchored" data-anchor-id="green-simplest-code-to-pass">8.2 GREEN — simplest code to pass</h3>
+<p><strong>File:</strong> <code>app/models/movie.rb</code></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode ruby code-with-copy"><code class="sourceCode ruby"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="cf">def</span> name_with_rating</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"</span><span class="sc">#{</span>title<span class="sc">}</span><span class="st"> (</span><span class="sc">#{</span>rating<span class="sc">}</span><span class="st">)"</span></span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Run again → <strong>GREEN</strong>.</p>
+</section>
+<section id="refactor-nothing-to-clean-up" class="level3">
+<h3 class="anchored" data-anchor-id="refactor-nothing-to-clean-up">8.3 REFACTOR — nothing to clean up</h3>
+<p>The implementation is already minimal. Move on to the next behavior.</p>
+<hr>
+</section>
+</section>
+<section id="first-properties-of-good-unit-tests-slides-1213" class="level2">
+<h2 class="anchored" data-anchor-id="first-properties-of-good-unit-tests-slides-1213">9. FIRST — Properties of Good Unit Tests (Slides 12–13)</h2>
+<p>The model validation specs illustrate FIRST:</p>
+<p><strong>File:</strong> <code>spec/models/movie_spec.rb</code></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode ruby code-with-copy"><code class="sourceCode ruby"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>describe <span class="vs">'validations'</span> <span class="cf">do</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>  it <span class="vs">'is invalid without a title'</span> <span class="cf">do</span></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>    movie <span class="op">=</span> <span class="dt">Movie</span><span class="at">.new</span>(<span class="wa">release_date:</span> <span class="dt">Date</span><span class="at">.new</span>(<span class="dv">2000</span>, <span class="dv">1</span>, <span class="dv">1</span>))</span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>    expect(movie)<span class="at">.not_to</span> be_valid</span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>    expect(movie<span class="at">.errors</span><span class="kw">[</span><span class="wa">:title</span><span class="kw">]</span>)<span class="at">.to</span> be_present</span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>  it <span class="vs">'is invalid with release_date before 1930'</span> <span class="cf">do</span></span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a>    movie <span class="op">=</span> <span class="dt">Movie</span><span class="at">.new</span>(<span class="wa">title:</span> <span class="vs">'Oldie'</span>, <span class="wa">release_date:</span> <span class="dt">Date</span><span class="at">.new</span>(<span class="dv">1920</span>, <span class="dv">1</span>, <span class="dv">1</span>))</span>
+<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a>    expect(movie)<span class="at">.not_to</span> be_valid</span>
+<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a>    expect(movie<span class="at">.errors</span><span class="kw">[</span><span class="wa">:release_date</span><span class="kw">]</span>)<span class="at">.to</span> be_present</span>
+<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Letter</th>
+<th>Property</th>
+<th>How this spec satisfies it</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>F</strong></td>
+<td>Fast</td>
+<td>No DB writes — <code>Movie.new</code> only</td>
+</tr>
+<tr class="even">
+<td><strong>I</strong></td>
+<td>Independent</td>
+<td>Each spec creates its own <code>Movie</code></td>
+</tr>
+<tr class="odd">
+<td><strong>R</strong></td>
+<td>Repeatable</td>
+<td>No randomness or time-of-day dependency</td>
+</tr>
+<tr class="even">
+<td><strong>S</strong></td>
+<td>Self-checking</td>
+<td><code>expect</code> automatically passes or fails</td>
+</tr>
+<tr class="odd">
+<td><strong>T</strong></td>
+<td>Timely</td>
+<td>Written alongside the validations</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="coverage-the-testing-pyramid-slides-6265" class="level2">
+<h2 class="anchored" data-anchor-id="coverage-the-testing-pyramid-slides-6265">10. Coverage &amp; the Testing Pyramid (Slides 62–65)</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 16%">
+<col style="width: 48%">
+<col style="width: 16%">
+<col style="width: 18%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Level</th>
+<th>Example in this demo</th>
+<th>Speed</th>
+<th>Mocks?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Unit</strong> (model specs)</td>
+<td><code>spec/models/movie_spec.rb</code></td>
+<td>Fastest</td>
+<td>Few/none</td>
+</tr>
+<tr class="even">
+<td><strong>Functional</strong> (controller specs)</td>
+<td><code>spec/controllers/movies_controller_spec.rb</code></td>
+<td>Fast</td>
+<td>Stubs &amp; doubles</td>
+</tr>
+<tr class="odd">
+<td><strong>Integration</strong> (request specs)</td>
+<td><code>spec/requests/movies_spec.rb</code></td>
+<td>Slower</td>
+<td>None</td>
+</tr>
+<tr class="even">
+<td><strong>Acceptance</strong> (Cucumber scenarios)</td>
+<td><code>features/search_tmdb.feature</code></td>
+<td>Exercises more of the app</td>
+<td>Only the external TMDb boundary is stubbed</td>
+</tr>
+</tbody>
+</table>
+<p>From the slides:</p>
+<ul>
+<li>Use <strong>coverage to find untested code</strong>, not as a “100% or bust” rule.</li>
+<li>Each level finds bugs the other misses — defense in depth.</li>
+</ul>
+<hr>
+</section>
+<section id="key-concepts-summary" class="level2">
+<h2 class="anchored" data-anchor-id="key-concepts-summary">11. Key Concepts Summary</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 22%">
+<col style="width: 77%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Concept</th>
+<th>Where you see it in this demo</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>BDD + TDD (Slide 6)</strong></td>
+<td>Cucumber RED → RSpec RED → RSpec GREEN → Cucumber GREEN (§2.1, §4.3–4.5)</td>
+</tr>
+<tr class="even">
+<td><strong>RSpec GREEN ≠ story done</strong></td>
+<td>After Exercise 3, controller specs pass but the user still has no search form</td>
+</tr>
+<tr class="odd">
+<td><strong>Acceptance criteria</strong></td>
+<td>Cucumber checks matching titles and the no-matches message through the actual UI</td>
+</tr>
+<tr class="even">
+<td><strong>Red–Green–Refactor</strong></td>
+<td><code>name_with_rating</code>: spec fails → add method → spec passes</td>
+</tr>
+<tr class="odd">
+<td><strong>The code you wish you had</strong></td>
+<td><code>Movie.find_in_tmdb</code> — tested before implemented</td>
+</tr>
+<tr class="even">
+<td><strong>Seam</strong></td>
+<td><code>Movie.find_in_tmdb</code> is the place we intercept without changing the controller</td>
+</tr>
+<tr class="odd">
+<td><strong>Method stub</strong> (<code>allow</code>)</td>
+<td><code>allow(Movie).to receive(:find_in_tmdb)</code> returns canned data</td>
+</tr>
+<tr class="even">
+<td><strong>Message expectation</strong> (<code>expect...to receive</code>)</td>
+<td>Verifies the controller calls <code>find_in_tmdb</code></td>
+</tr>
+<tr class="odd">
+<td><strong>Stunt double</strong> (<code>double</code>)</td>
+<td><code>fake_results = [double('Movie'), double('Movie')]</code></td>
+</tr>
+<tr class="even">
+<td><strong>FIRST</strong></td>
+<td>All model specs are fast, independent, repeatable, self-checking, timely</td>
+</tr>
+<tr class="odd">
+<td><strong>Arrange–Act–Assert</strong></td>
+<td>Every spec: setup → action → expectation</td>
+</tr>
+<tr class="even">
+<td><strong>Fixtures vs Factories</strong></td>
+<td>Lecture examples shown in Section 7</td>
+</tr>
+<tr class="odd">
+<td><strong>Coverage levels</strong></td>
+<td>Unit / Functional / Integration pyramid</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
