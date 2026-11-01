@@ -131,7 +131,7 @@ open coverage/index.html    # macOS
   colored lines:
   - **Green** = executed during tests
   - **Red** = never executed
-  - **Dard Red** (branches) = some branches taken, others missed
+  - **Dard Red** (branches) = not all branches are executed
 
 ### Try it now
 
