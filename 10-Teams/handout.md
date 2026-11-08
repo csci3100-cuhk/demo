@@ -287,7 +287,9 @@ Local machine          GitHub (remote)         CI Service
 ─────────────          ───────────────         ──────────
 checkout branch   →    push branch        →    run all tests
 make commits           open PR                 report results
+
 fix CI failures   ←    review comments   ←    flag failures
+
 push fixes        →    merge PR          →    deploy to staging
                                               → deploy to production
 ```
