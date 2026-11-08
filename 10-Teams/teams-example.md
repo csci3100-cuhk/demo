@@ -342,16 +342,15 @@ jobs:
 
 ### Step 8b — Commit and push the CI file
 
-If you are still on your feature branch:
+Normally, CI runs on main branch, so checkout to main branch first and add/commit/push:
 
 ```bash
+git checkout main
 git add .github/workflows/ci.yml
 git commit -m "Add GitHub Actions CI to run RSpec on push and PR"
-git push origin show-movie-count
+git push
 ```
 
-(Alternatively, you can add CI in a **separate** branch and PR first, so `main`
-gets CI before your feature. Either way works for a class project.)
 
 ### Step 8c — See CI run on GitHub
 
